@@ -5,63 +5,81 @@ import Data.Vect.Elem
 import Data.So
 
 mutual
-    data UniqVect : Nat -> (a : Type) -> Type where
+    data UniqVect : Nat -> (a : Type) -> Eq a => Type where
         Nil : Eq a => 
               UniqVect 0 a
         (::) : Eq a => 
                (x : a) -> 
                (xs : UniqVect n a) -> 
-               UniqAll (/= x) xs => 
+               (ua : UniqAll (/= x) xs) => 
                UniqVect (S n) a
 
-    data UniqAll : (a -> Bool) -> UniqVect n a -> Type where
+    data UniqAll : Eq a => (a -> Bool) -> UniqVect n a -> Type where
         Nil' : {0 p : a -> Bool} -> 
                Eq a => 
                UniqAll p Nil
-        Cons' : {0 p : a -> Bool} -> 
-                Eq a => 
-                UniqAll (/= x) xs => 
+        Cons' : {0 a : Type} ->
+                Eq a =>
+                {0 p : a -> Bool} ->
+                {0 x : a} ->
+                {0 xs : UniqVect n a} -> 
+                (ua : UniqAll (/= x) xs) => 
                 So (p x) -> 
                 UniqAll p xs -> 
                 UniqAll p (x::xs)
 
-namespace Alt
-    %hide FAT32.UniqVect
-    %hide FAT32.UniqAll
-    mutual
-        data UniqVect : Nat -> (a : Type) -> Type where
-            Nil : Eq a => 
-                  UniqVect 0 a
-            (::) : Eq a => 
-                   (x : a) -> 
-                   (xs : UniqVect n a) -> 
-                   UniqAll (/= x) xs => 
-                   UniqVect (S n) a
+-- namespace Alt
+--     %hide FAT32.UniqVect
+--     %hide FAT32.UniqAll
+--     mutual
+--         data UniqVect : Nat -> (a : Type) -> Type where
+--             Nil : Eq a => 
+--                   UniqVect 0 a
+--             (::) : Eq a => 
+--                    (x : a) -> 
+--                    (xs : UniqVect n a) -> 
+--                    UniqAll (/= x) xs => 
+--                    UniqVect (S n) a
+--
+--         data UniqAll : (a -> Bool) -> UniqVect n a -> Type where
+--             Nil' : {0 p : a -> Bool} -> 
+--                    Eq a => 
+--                    UniqAll p Nil
+--             Cons' : {0 p : a -> Bool} -> 
+--                     So (p x) -> 
+--                     UniqAll p xs -> 
+--                     UniqAll p ((::) x xs @{peq} @{pall})
+--
+-- %unhide FAT32.UniqVect
+-- %unhide FAT32.UniqAll
 
-        data UniqAll : (a -> Bool) -> UniqVect n a -> Type where
-            Nil' : {0 p : a -> Bool} -> 
-                   Eq a => 
-                   UniqAll p Nil
-            Cons' : {0 p : a -> Bool} -> 
-                    So (p x) -> 
-                    UniqAll p xs -> 
-                    UniqAll p ((::) x xs @{peq} @{pall})
+data UniqElem : {0 a : Type} -> Eq a => a -> UniqVect n a -> Type where
+    Here : {0 a : Type} -> Eq a => {0 x : a} -> {0 xs : UniqVect n a} -> UniqAll (/= x) xs => UniqElem x (x::xs)
+    There : {0 a : Type} -> Eq a => {0 y : a} -> {0 x : a} -> {0 xs : UniqVect n a} -> UniqAll (/= y) xs => UniqElem x xs -> UniqElem x ((::) y xs)
 
-%unhide FAT32.UniqVect
-%unhide FAT32.UniqAll
+(<++>) : Eq a => 
+         (xs : UniqVect n a) ->
+         (ys : UniqVect m a) -> 
+         (uf : {0 x : a} -> 
+         UniqElem x xs -> 
+         UniqAll (/= x) ys) => 
+         UniqVect (n + m) a
 
-data UniqElem : a -> UniqVect n a -> Type where
-    Here : {0 x : a} -> {0 xs : UniqVect n a} -> Eq a => UniqAll (/= x) xs => UniqElem x (x::xs)
-    There : UniqElem x xs -> UniqElem x ((::) @{peq} y xs @{pall})
+prf_x_uniq : {0 a : Type} -> 
+             Eq a => 
+             (x0 : a) -> 
+             (xs' : UniqVect n a) -> 
+             (ux : UniqAll (/= x0) xs') -> 
+             (ys : UniqVect m a) -> 
+             (uf : {0 x : a} -> (UniqElem x ((::) x0 xs') -> UniqAll (/= x) ys)) -> 
+             UniqAll (/= x0) ((<++>) xs' ys {uf = \arg => uf (There arg)})
 
-(<++>) : (conAr : Eq a) => (xs : UniqVect n a) -> (ys : UniqVect m a) -> (uf : {0 x : a} -> UniqElem x xs -> UniqAll (/= x) ys) => UniqVect (n + m) a
+prf_x_uniq x0 [] ux ys uf = ?prf_x_uniq_rhs_0
+-- prf_x_uniq x0 ((::) x xs {ua = ux}) (Cons' y z) ys uf = (Cons' y ?Cons'_arg_1 {ua = ?uaaa})
+prf_x_uniq x0 ((::) x xs {ua = ux}) (Cons' y z) ys uf = ?rhs1
 
-prf_x_uniq : {0 a : Type} -> (auto_eq : Eq a) => (x0 : a) -> (xs' : UniqVect n a) -> (ux : UniqAll (\arg => arg /= x0) xs') -> (ys : UniqVect m a) -> (uf : {0 x : a} -> (UniqElem x ((::) @{auto_eq} x0 xs' @{ux}) -> UniqAll (\arg => arg /= x) ys)) -> UniqAll (\arg => arg /= x0) ((<++>) @{auto_eq} xs' ys @{?uhh})
-prf_x_uniq = ?prf_x_uniq_rhs
-
--- какие-то беды с интансами `Eq a`, peq и conAr потенциально разные инстансы, и оно не тайпчекается (если вместо ?ux подставить ux итд)
 (<++>) [] ys = ys
-(<++>) ((::) @{peq} x xs' @{ux}) ys = (::) @{conAr} x ((<++>) @{conAr} xs' ys @{?new_uf}) @{prf_x_uniq @{conAr} x xs' ?ux ys ?uf}
+(<++>) ((::) x0 xs' {ua = ux}) ys = (::) x0 ((<++>) xs' ys {uf = \arg => uf (There arg)}) {ua = prf_x_uniq x0 xs' ux ys uf}
 
 (++) : (n ** Vect n a) -> (m ** Vect m a) -> (p ** Vect p a)
 (n ** xs) ++ (m ** ys) = ((n + m) ** (xs ++ ys))
