@@ -23,7 +23,7 @@ depends = deptycheck,bytestring
 
 -- name of executable
 -- executable =
-opts = "--total"
+-- opts = "--total"
 sourcedir = "src"
 builddir = "build"
 -- outputdir =

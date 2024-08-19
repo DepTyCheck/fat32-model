@@ -1,8 +1,10 @@
-module FAT32
+module Filesystems.FAT32
 
 import Data.Vect
 import Data.Vect.Elem
 import Data.So
+
+%default total
 
 mutual
     data UniqVect : Nat -> (a : Type) -> Eq a => Type where
