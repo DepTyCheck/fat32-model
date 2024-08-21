@@ -3,6 +3,7 @@ module Filesystems.FAT32
 import Data.Nat
 import Data.Fin
 import Data.Monomorphic.Vect
+import Data.FinInc
 
 %default total
 
