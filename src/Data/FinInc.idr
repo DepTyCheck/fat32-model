@@ -1,6 +1,8 @@
 module Data.FinInc
 
 import Data.Nat
+import Data.Nat.Division
+import Data.Nat.Order
 import Data.Nat.Order.Properties
 import Decidable.Decidable
 import Decidable.Equality
@@ -42,22 +44,41 @@ divCeilNZ x y p = case (modNatNZ x y p) of
   Z   => divNatNZ x y p
   S _ => S (divNatNZ x y p)
 
-dividentZeroEqZero : (0 y : Nat) -> (0 p : NonZero y) -> divNatNZ 0 y p = 0
-dividentZeroEqZero (S _) SIsNonZero = Refl
+divModMult : (n : Nat) -> (b : Nat) -> (0 nz : NonZero b) -> (divNatNZ (n * b) b nz = n, modNatNZ (n * b) b nz = 0)
+divModMult _ 0 SIsNonZero impossible
+divModMult n (S k) SIsNonZero = DivisionTheoremUniqueness (n * (S k)) (S k) SIsNonZero n 0 ltZero (sym (plusZeroRightNeutral (n * (S k))))
 
-lteZeroOnlyZero : LTE a 0 -> a = 0
-lteZeroOnlyZero LTEZero = Refl
+divMultIsNumer : (n : Nat) -> (b : Nat) -> (0 nz : NonZero b) -> divNatNZ (n * b) b nz = n
+divMultIsNumer n b nz = fst (divModMult n b nz)
 
-multCommutLTERhs : LTE a (b * n) -> LTE a (n * b)
-multCommutLTERhs x = rewrite multCommutative n b in x
+modMultIsZero : (n : Nat) -> (b : Nat) -> (0 nz : NonZero b) -> modNatNZ (n * b) b nz = 0
+modMultIsZero n b nz = snd (divModMult n b nz)
 
-divNatNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (nz : NonZero b) -> LT a (b * n) -> LT (divNatNZ a b nz) n
+plusLeftLTCancel : (a : Nat) -> (b : Nat) -> (r : Nat) -> LT (r + a) (r + b) -> LT a b
+plusLeftLTCancel a b 0 ltr = ltr
+plusLeftLTCancel a b (S k) ltr = plusLeftLTCancel a b k (fromLteSucc ltr)
+
+multRightLTCancel : (a : Nat) -> (b : Nat) -> (r : Nat) -> (0 _ : NonZero r) -> LT (a * r) (b * r) -> LT a b
+multRightLTCancel 0 0 (S x) SIsNonZero ltr = ltr
+multRightLTCancel (S k) 0 (S x) SIsNonZero ltr = void (zeroNeverGreater ltr)
+multRightLTCancel 0 (S k) (S x) SIsNonZero ltr = LTESucc LTEZero
+multRightLTCancel (S j) (S k) r@(S x) SIsNonZero ltr = LTESucc (multRightLTCancel j k r SIsNonZero (plusLeftLTCancel (j * r) (k * r) r ltr))
+
+divNatNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (nz : NonZero b) -> LT a (n * b) -> LT (divNatNZ a b nz) n
+divNatNZBounds a b@(S b') n SIsNonZero plt = multRightLTCancel (divNatNZ a b SIsNonZero) n b SIsNonZero (transitive plt2 plt1)
+  where plt1 : LT (modNatNZ a b SIsNonZero + (divNatNZ a b SIsNonZero * b)) (n * b)
+        plt1 = rewrite sym (DivisionTheorem a b SIsNonZero SIsNonZero) in plt
+        plt2 : LTE (S (divNatNZ a b SIsNonZero * b)) (S (modNatNZ a b SIsNonZero + (divNatNZ a b SIsNonZero * b)))
+        plt2 = LTESucc (rewrite plusCommutative (modNatNZ a b SIsNonZero) (divNatNZ a b SIsNonZero * b) in lteAddRight (divNatNZ a b SIsNonZero * b))
 
 
-divCeilNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (nz : NonZero b) -> LTE a (b * n) -> LTE (Data.FinInc.divCeilNZ a b nz) n
-divCeilNZBounds a b n nz ltep with (decomposeLte a (b * n) ltep)
+divCeilNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (nz : NonZero b) -> LTE a (n * b) -> LTE (Data.FinInc.divCeilNZ a b nz) n
+divCeilNZBounds a b n nz ltep with (decomposeLte a (n * b) ltep)
   divCeilNZBounds a b n nz ltep | (Left x) with (modNatNZ a b nz)
     divCeilNZBounds a b n nz ltep | (Left x) | 0 = lteSuccLeft (divNatNZBounds a b n nz x)
     divCeilNZBounds a b n nz ltep | (Left x) | (S _) = divNatNZBounds a b n nz x
-  divCeilNZBounds a b n nz ltep | (Right x) = rewrite x in ?divCeilNZBounds_rhs_rhss_1
+  divCeilNZBounds a b n nz ltep | (Right x) = 
+    rewrite x in
+    rewrite (modMultIsZero n b nz) in
+    rewrite (divMultIsNumer n b nz) in reflexive
 
