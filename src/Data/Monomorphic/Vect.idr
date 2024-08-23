@@ -1,6 +1,7 @@
 module Data.Monomorphic.Vect
 
-import Data.Fin
+import Data.Nat
+import Data.FinInc
 
 %default total
 
@@ -21,8 +22,19 @@ namespace VectBits8
         Nil : VectBits8 0
         (::) : Bits8 -> VectBits8 n -> VectBits8 (S n)
 
-namespace VectFin
+namespace VectFinInc
     public export
-    data VectFin : Nat -> Nat -> Type where
-        Nil : VectFin 0 n
-        (::) : Fin n -> VectFin k n -> VectFin (S k) n
+    data VectFinInc : Nat -> Nat -> Type where
+        Nil : VectFinInc 0 n
+        (::) : FinInc n -> VectFinInc k n -> VectFinInc (S k) n
+
+namespace HVectFinInc
+    public export
+    data HVectFinInc : (k : Nat) -> VectNat k -> Type where
+        Nil : HVectFinInc 0 []
+        (::) : FinInc n -> HVectFinInc k ns -> HVectFinInc (S k) (n :: ns)
+    
+    public export
+    sum : {ns : VectNat k} -> HVectFinInc k ns -> FinInc (sum ns)
+    sum [] = natToFinIncLTE 0
+    sum (x :: xs) = x + sum xs

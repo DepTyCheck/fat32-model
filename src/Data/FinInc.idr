@@ -95,5 +95,10 @@ divCeilNZBounds a b n nz ltep with (decomposeLte a (n * b) ltep)
     rewrite (divMultIsNumer n b nz) in reflexive
 
 public export
+divCeilFlipWeak : {0 n : Nat} -> {0 r : Nat} -> (b : Nat) -> (0 _ : NonZero b) => (a : FinInc (minus (n * b) r)) -> FinInc n
+divCeilFlipWeak b @{nz} a = natToFinIncLTE (Data.FinInc.divCeilNZ (finIncToNat a) b nz) @{divCeilNZBounds (finIncToNat a) b n nz (transitive (elemLTEBound a) (minusLTE r (n * b)))}
+
+public export
 divCeilFlip : (b : Nat) -> (0 _ : NonZero b) => (a : FinInc (n * b)) -> FinInc n
-divCeilFlip b @{nz} a = natToFinIncLTE (Data.FinInc.divCeilNZ (finIncToNat a) b nz) @{divCeilNZBounds (finIncToNat a) b n nz (elemLTEBound a)}
+divCeilFlip b @{nz} a = divCeilFlipWeak b @{nz} (rewrite minusZeroRight (n * b) in a) {r = 0}
+
