@@ -14,9 +14,10 @@ data PosFin : (n : Nat) -> Fin n -> Type where
 -- divCeil {n = (S _)} a@(FS y) b = case isLT (finToNat a) (finToNat b) of
 --                                     (Yes prf) => FS FZ
 --                                     (No contra) => ?divCeil_rhs_3
--- func : Fin (S n) -> Fin (S n)
--- func FZ = FZ
--- func (FS x) = FS FZ
+func : {n : Nat} -> Fin (S n) -> Fin (S n)
+func FZ = FZ
+func (FS x) {n = 0} = ?gsh
+func (FS x) {n = (S k)} = FS FZ
 
 divCeil : (a : Fin (S n)) -> (b : Nat) -> Fin n 
 
