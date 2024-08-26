@@ -6,6 +6,7 @@ import Data.Nat.Order
 import Data.Nat.Order.Properties
 import Decidable.Decidable
 import Decidable.Equality
+import Syntax.PreorderReasoning
 
 %default total
 
@@ -13,6 +14,8 @@ public export
 data FinInc : Nat -> Type where
     FZ : FinInc k
     FS : FinInc k -> FinInc (S k)
+
+%builtin Natural FinInc
 
 public export
 finIncToNat : FinInc n -> Nat
@@ -76,7 +79,7 @@ multRightLTCancel 0 (S k) (S x) SIsNonZero ltr = LTESucc LTEZero
 multRightLTCancel (S j) (S k) r@(S x) SIsNonZero ltr = LTESucc (multRightLTCancel j k r SIsNonZero (plusLeftLTCancel (j * r) (k * r) r ltr))
 
 public export
-divNatNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (nz : NonZero b) -> LT a (n * b) -> LT (divNatNZ a b nz) n
+divNatNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (0 nz : NonZero b) -> LT a (n * b) -> LT (divNatNZ a b nz) n
 divNatNZBounds a b@(S b') n SIsNonZero plt = multRightLTCancel (divNatNZ a b SIsNonZero) n b SIsNonZero (transitive plt2 plt1)
   where plt1 : LT (modNatNZ a b SIsNonZero + (divNatNZ a b SIsNonZero * b)) (n * b)
         plt1 = rewrite sym (DivisionTheorem a b SIsNonZero SIsNonZero) in plt
@@ -84,7 +87,7 @@ divNatNZBounds a b@(S b') n SIsNonZero plt = multRightLTCancel (divNatNZ a b SIs
         plt2 = LTESucc (rewrite plusCommutative (modNatNZ a b SIsNonZero) (divNatNZ a b SIsNonZero * b) in lteAddRight (divNatNZ a b SIsNonZero * b))
 
 public export
-divCeilNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (nz : NonZero b) -> LTE a (n * b) -> LTE (Data.FinInc.divCeilNZ a b nz) n
+divCeilNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (0 nz : NonZero b) -> LTE a (n * b) -> LTE (Data.FinInc.divCeilNZ a b nz) n
 divCeilNZBounds a b n nz ltep with (decomposeLte a (n * b) ltep)
   divCeilNZBounds a b n nz ltep | (Left x) with (modNatNZ a b nz)
     divCeilNZBounds a b n nz ltep | (Left x) | 0 = lteSuccLeft (divNatNZBounds a b n nz x)
@@ -93,6 +96,14 @@ divCeilNZBounds a b n nz ltep with (decomposeLte a (n * b) ltep)
     rewrite x in
     rewrite (modMultIsZero n b nz) in
     rewrite (divMultIsNumer n b nz) in reflexive
+
+public export
+numerMinusModIsDenomMultQuot : (0 a : Nat) -> (0 b : Nat) -> (0 nz : NonZero b) => minus a (modNatNZ a b nz) = b * divNatNZ a b nz
+numerMinusModIsDenomMultQuot a b = Calc $
+    |~ (a `minus` modNatNZ a b nz)
+    ~~ (modNatNZ a b nz + divNatNZ a b nz * b `minus` modNatNZ a b nz) ...(cong (`minus` modNatNZ a b nz) $ DivisionTheorem a b nz nz)
+    ~~ (divNatNZ a b nz * b) ...(minusPlus $ modNatNZ a b nz)
+    ~~ (b * divNatNZ a b nz) ...(multCommutative (divNatNZ a b nz) b)
 
 public export
 divCeilFlipWeak : {0 n : Nat} -> {0 r : Nat} -> (b : Nat) -> (0 _ : NonZero b) => (a : FinInc (minus (n * b) r)) -> FinInc n
