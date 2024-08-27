@@ -4,6 +4,8 @@ import Data.Nat
 import Data.Nat.Division
 import Data.Monomorphic.Vect
 import Data.FinInc
+import Data.Fuel
+import Deriving.DepTyCheck.Gen
 
 %default total
 
@@ -98,5 +100,6 @@ data Filesystem : NodeParams -> Nat -> Type where
            {0 ts : HVectFinInc (finIncToNat k) ms} ->
            (entries : HVectMaybeNode cfg (finIncToNat k) ns ms cs ts) ->
            Filesystem (MkNodeParams clustSize clustNZ) (n + sum ms)
-    
 
+public export
+genFilesystem : Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (maxClust ** Filesystem cfg maxClust)
