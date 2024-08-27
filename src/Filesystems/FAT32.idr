@@ -23,16 +23,16 @@ record NodeParams where
     clusterSize : Nat
     clusterSizeNZ : NonZero clusterSize
 
-public export
-record FSConfig where
-    constructor MkFSConfig
-    nodeParams : NodeParams
-    maxClusters : Nat
+-- public export
+-- record FSConfig where
+--     constructor MkFSConfig
+--     nodeParams : NodeParams
+--     maxClusters : Nat
 
 public export
 record Metadata where
     constructor MkMetadata
-    filename : VectBits8 FilenameLength
+    -- filename : VectBits8 FilenameLength
     readOnly : Bool
     hidden : Bool
     system : Bool
@@ -41,61 +41,62 @@ record Metadata where
 public export
 data Node : NodeParams -> (n : Nat) -> (m : Nat) -> FinInc n -> FinInc m -> Type
 
--- TODO: make the type be indexed by NodeParams
 namespace MaybeNode
     public export
     data MaybeNode : NodeParams -> (n : Nat) -> (m : Nat) -> FinInc n -> FinInc m -> Type where
         Nothing : MaybeNode cfg n m cur tot
         Just : Node cfg n m tot cur -> MaybeNode cfg n m tot cur
 
--- TODO: make the type be indexed by NodeParams
 namespace HVectMaybeNode
     public export
-    data HVectMaybeNode : (k : Nat) -> (ns : VectNat k) -> (ms : VectNat k) -> HVectFinInc k ns -> HVectFinInc k ms -> Type where
-        Nil : HVectMaybeNode 0 [] [] [] []
+    data HVectMaybeNode : NodeParams -> (k : Nat) -> (ns : VectNat k) -> (ms : VectNat k) -> HVectFinInc k ns -> HVectFinInc k ms -> Type where
+        Nil : HVectMaybeNode cfg 0 [] [] [] []
         (::) : forall cfg, n, ns, m, ms.
                {0 cur : FinInc n} ->
                {0 tot : FinInc m} ->
                {0 cs : HVectFinInc k ns} ->
                {0 ts : HVectFinInc k ms} ->
                MaybeNode cfg n m cur tot -> 
-               HVectMaybeNode k ns ms cs ts -> 
-               HVectMaybeNode (S k) (n :: ns) (m :: ms) (cur :: cs) (tot :: ts)
+               HVectMaybeNode cfg k ns ms cs ts -> 
+               HVectMaybeNode cfg (S k) (n :: ns) (m :: ms) (cur :: cs) (tot :: ts)
 
--- TODO: replace explicit VectBits8 blobs with their sizes
--- TODO: replace cfg.clusterSize with explicit pattern-matching
--- TODO: remove let (?)
 public export
 data Node : NodeParams -> (n : Nat) -> (m : Nat) -> FinInc n -> FinInc m -> Type where
-    File : forall cfg, n, m.
-           {0 k : FinInc (n * cfg.clusterSize)} ->
+    File : forall clustSize, clustNZ, n, m.
+           {0 k : FinInc (n * clustSize)} ->
            (meta : Metadata) ->
-           (contents : VectBits8 (finIncToNat k)) ->
-           let clusterNum = divCeilFlip cfg.clusterSize @{cfg.clusterSizeNZ} k in Node cfg n n clusterNum clusterNum
-    Dir : {0 cfg : NodeParams} ->
-          {0 n : Nat} ->
-          {0 k : FinInc (divNatNZ (n * cfg.clusterSize) DirentSize SIsNonZero)} ->
+           Node (MkNodeParams clustSize clustNZ) n n (divCeilFlip clustSize @{clustNZ} k) (divCeilFlip clustSize @{clustNZ} k)
+    Dir : forall clustSize, clustNZ, n.
+          {0 k : FinInc (divNatNZ (n * clustSize) DirentSize SIsNonZero)} ->
           {0 ns : VectNat (finIncToNat k)} ->
           {0 ms : VectNat (finIncToNat k)} ->
           {0 cs : HVectFinInc (finIncToNat k) ns} ->
           {0 ts : HVectFinInc (finIncToNat k) ms} ->
           (meta : Metadata) ->
-          (entries : HVectMaybeNode (finIncToNat k) ns ms cs ts) ->
-          let clusterNum = divCeilFlipWeak cfg.clusterSize @{cfg.clusterSizeNZ} (rewrite numerMinusModIsDenomMultQuot (n * cfg.clusterSize) DirentSize in DirentSize * k) {r = modNatNZ (n * cfg.clusterSize) DirentSize SIsNonZero} in 
-          Node cfg n (n + sum ms) clusterNum (clusterNum + sum ts)
+          (entries : HVectMaybeNode cfg (finIncToNat k) ns ms cs ts) ->
+          -- let clusterNum = divCeilFlipWeak clustSize 
+          --                                   @{clustNZ} 
+          --                                   (rewrite numerMinusModIsDenomMultQuot (n * clustSize) DirentSize in DirentSize * k) {n}
+          --                                   {r = modNatNZ (n * clustSize) DirentSize SIsNonZero} 
+          Node (MkNodeParams clustSize clustNZ) n (n + sum ms) (divCeilFlipWeak clustSize 
+                                            @{clustNZ} 
+                                            (rewrite numerMinusModIsDenomMultQuot (n * clustSize) DirentSize in DirentSize * k)
+                                            {r = modNatNZ (n * clustSize) DirentSize SIsNonZero}) ((divCeilFlipWeak clustSize 
+                                            @{clustNZ} 
+                                            (rewrite numerMinusModIsDenomMultQuot (n * clustSize) DirentSize in DirentSize * k) {n}
+                                            {r = modNatNZ (n * clustSize) DirentSize SIsNonZero}) + sum ts)
 
 public export
-data Filesystem : FSConfig -> Type where
-    Root : {0 clusterSize : Nat} ->
-           {0 clusterSizeNZ : NonZero clusterSize} ->
+data Filesystem : NodeParams -> Nat -> Type where
+    Root : {0 clustSize : Nat} ->
+           {0 clustNZ : NonZero clustSize} ->
            {0 n : Nat} ->
-           {0 k : FinInc (divNatNZ (n * clusterSize) DirentSize SIsNonZero)} ->
+           {0 k : FinInc (divNatNZ (n * clustSize) DirentSize SIsNonZero)} ->
            {0 ns : VectNat (finIncToNat k)} ->
            {0 ms : VectNat (finIncToNat k)} ->
            {0 cs : HVectFinInc (finIncToNat k) ns} ->
            {0 ts : HVectFinInc (finIncToNat k) ms} ->
-           (entries : HVectMaybeNode (finIncToNat k) ns ms cs ts) ->
-           -- TODO: make (n + sum ts) a generated parameter
-           Filesystem (MkFSConfig (MkNodeParams clusterSize clusterSizeNZ) (n + sum ms))
+           (entries : HVectMaybeNode cfg (finIncToNat k) ns ms cs ts) ->
+           Filesystem (MkNodeParams clustSize clustNZ) (n + sum ms)
     
 
