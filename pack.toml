@@ -1,0 +1,10 @@
+[custom.all.fat32-model]
+type = "local"
+path = "."
+ipkg = "fat32-model.ipkg"
+
+[custom.all.contrib-nat-division]
+type = "github"
+url = "https://github.com/elkcl/idris2-contrib-nat-division"
+commit = "main"
+ipkg = "contrib-nat-division.ipkg"

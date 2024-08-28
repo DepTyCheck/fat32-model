@@ -14,7 +14,7 @@ authors = "elkcl"
 
 -- packages to add to search path
 depends = deptycheck
-        , contrib
+        , contrib-nat-division
 
 -- modules to install
 -- modules = Filesystems.FAT32
