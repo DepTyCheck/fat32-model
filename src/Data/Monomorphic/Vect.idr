@@ -36,5 +36,5 @@ namespace HVectFinInc
     
     public export
     sum : {ns : VectNat k} -> HVectFinInc k ns -> FinInc (sum ns)
-    sum [] = natToFinIncLTE 0
+    sum [] = MkFinInc 0 LTEZero
     sum (x :: xs) = x + sum xs

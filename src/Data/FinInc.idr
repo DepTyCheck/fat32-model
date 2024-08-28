@@ -11,45 +11,22 @@ import Syntax.PreorderReasoning
 %default total
 
 public export
-data FinInc : Nat -> Type where
-    FZ : FinInc k
-    FS : FinInc k -> FinInc (S k)
-
-%builtin Natural FinInc
-
-public export
-finIncToNat : FinInc n -> Nat
-finIncToNat FZ = 0
-finIncToNat (FS x) = S (finIncToNat x)
-
-public export
-natToFinIncLTE : (x : Nat) -> (0 prf : LTE x n) => FinInc n
-natToFinIncLTE 0 = FZ
-natToFinIncLTE (S k) {prf = (LTESucc x)} = FS (natToFinIncLTE k)
-
-public export
-elemLTEBound : (n : FinInc m) -> LTE (finIncToNat n) m
-elemLTEBound FZ = LTEZero
-elemLTEBound (FS x) = LTESucc (elemLTEBound x)
-
-public export
-weakenN : (0 n : Nat) -> FinInc m -> FinInc (m + n)
-weakenN n FZ = FZ
-weakenN n (FS f) = FS (weakenN n f)
+record FinInc n where
+    constructor MkFinInc
+    val : Nat
+    prf : LTE val n
 
 public export
 (+) : {n, m : Nat} -> FinInc n -> FinInc m -> FinInc (n + m)
-(+) FZ y = rewrite plusCommutative n m in weakenN n y
-(+) (FS x) y = FS (x + y)
+(+) (MkFinInc vx px) (MkFinInc vy py) = MkFinInc (vx + vy) (plusLteMonotone px py)
 
 public export
 (*) : {n : Nat} -> (a : Nat) -> (b : FinInc n) -> FinInc (a * n)
-(*) 0 _ = FZ
-(*) (S k) b = b + k * b
+(*) a (MkFinInc val prf) = MkFinInc (a * val) (multLteMonotoneRight a val n prf)
 
 public export
-divCeilNZ : Nat -> (y: Nat) -> (0 _ : NonZero y) -> Nat
-divCeilNZ x y p = case (modNatNZ x y p) of
+divCeilNZ' : Nat -> (y: Nat) -> (0 _ : NonZero y) -> Nat
+divCeilNZ' x y p = case (modNatNZ x y p) of
   Z   => divNatNZ x y p
   S _ => S (divNatNZ x y p)
 
@@ -87,7 +64,7 @@ divNatNZBounds a b@(S b') n SIsNonZero plt = multRightLTCancel (divNatNZ a b SIs
         plt2 = LTESucc (rewrite plusCommutative (modNatNZ a b SIsNonZero) (divNatNZ a b SIsNonZero * b) in lteAddRight (divNatNZ a b SIsNonZero * b))
 
 public export
-divCeilNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (0 nz : NonZero b) -> LTE a (n * b) -> LTE (Data.FinInc.divCeilNZ a b nz) n
+divCeilNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (0 nz : NonZero b) -> LTE a (n * b) -> LTE (divCeilNZ' a b nz) n
 divCeilNZBounds a b n nz ltep with (decomposeLte a (n * b) ltep)
   divCeilNZBounds a b n nz ltep | (Left x) with (modNatNZ a b nz)
     divCeilNZBounds a b n nz ltep | (Left x) | 0 = lteSuccLeft (divNatNZBounds a b n nz x)
@@ -106,10 +83,10 @@ numerMinusModIsDenomMultQuot a b = Calc $
     ~~ (b * divNatNZ a b nz) ...(multCommutative (divNatNZ a b nz) b)
 
 public export
-divCeilFlipWeak : {0 n : Nat} -> {0 r : Nat} -> (b : Nat) -> (0 _ : NonZero b) => (a : FinInc (minus (n * b) r)) -> FinInc n
-divCeilFlipWeak b @{nz} a = natToFinIncLTE (Data.FinInc.divCeilNZ (finIncToNat a) b nz) @{divCeilNZBounds (finIncToNat a) b n nz (transitive (elemLTEBound a) (minusLTE r (n * b)))}
+divCeilFlipWeak : {n : Nat} -> {r : Nat} -> (b : Nat) -> (0 _ : NonZero b) => (a : FinInc (minus (n * b) r)) -> FinInc n
+divCeilFlipWeak b @{nz} (MkFinInc va pa) = MkFinInc (divCeilNZ' va b nz) (divCeilNZBounds va b n nz (transitive pa (minusLTE r (n * b))))
 
 public export
-divCeilFlip : (b : Nat) -> (0 _ : NonZero b) => (a : FinInc (n * b)) -> FinInc n
+divCeilFlip : {n : Nat} -> (b : Nat) -> (0 _ : NonZero b) => (a : FinInc (n * b)) -> FinInc n
 divCeilFlip b @{nz} a = divCeilFlipWeak b @{nz} (rewrite minusZeroRight (n * b) in a) {r = 0}
 

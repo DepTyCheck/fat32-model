@@ -9,7 +9,6 @@ import public Deriving.DepTyCheck.Gen
 
 %default total
 
-
 namespace Constants
     public export
     DirentSize : Nat
@@ -25,16 +24,9 @@ record NodeParams where
     clusterSize : Nat
     clusterSizeNZ : NonZero clusterSize
 
--- public export
--- record FSConfig where
---     constructor MkFSConfig
---     nodeParams : NodeParams
---     maxClusters : Nat
-
 public export
 record Metadata where
     constructor MkMetadata
-    -- filename : VectBits8 FilenameLength
     readOnly : Bool
     hidden : Bool
     system : Bool
@@ -69,23 +61,20 @@ data Node : NodeParams -> (n : Nat) -> (m : Nat) -> FinInc n -> FinInc m -> Type
            (meta : Metadata) ->
            Node (MkNodeParams clustSize clustNZ) n n (divCeilFlip clustSize @{clustNZ} k) (divCeilFlip clustSize @{clustNZ} k)
     Dir : forall clustSize, clustNZ, n.
-          {0 k : FinInc (divNatNZ (n * clustSize) DirentSize SIsNonZero)} ->
-          {0 ns : VectNat (finIncToNat k)} ->
-          {0 ms : VectNat (finIncToNat k)} ->
-          {0 cs : HVectFinInc (finIncToNat k) ns} ->
-          {0 ts : HVectFinInc (finIncToNat k) ms} ->
+          {0 kv : Nat} ->
+          {0 kp : LTE kv (divNatNZ (n * clustSize) DirentSize SIsNonZero)} ->
+          {0 ns : VectNat kv} ->
+          {0 ms : VectNat kv} ->
+          {0 cs : HVectFinInc kv ns} ->
+          {0 ts : HVectFinInc kv ms} ->
           (meta : Metadata) ->
-          (entries : HVectMaybeNode (MkNodeParams clustSize clustNZ) (finIncToNat k) ns ms cs ts) ->
-          -- let clusterNum = divCeilFlipWeak clustSize 
-          --                                   @{clustNZ} 
-          --                                   (rewrite numerMinusModIsDenomMultQuot (n * clustSize) DirentSize in DirentSize * k) {n}
-          --                                   {r = modNatNZ (n * clustSize) DirentSize SIsNonZero} 
+          (entries : HVectMaybeNode (MkNodeParams clustSize clustNZ) kv ns ms cs ts) ->
           Node (MkNodeParams clustSize clustNZ) n (n + sum ms) (divCeilFlipWeak clustSize 
                                             @{clustNZ} 
-                                            (rewrite numerMinusModIsDenomMultQuot (n * clustSize) DirentSize in DirentSize * k)
+                                            (rewrite numerMinusModIsDenomMultQuot (n * clustSize) DirentSize in DirentSize * (MkFinInc kv kp))
                                             {r = modNatNZ (n * clustSize) DirentSize SIsNonZero}) ((divCeilFlipWeak clustSize 
                                             @{clustNZ} 
-                                            (rewrite numerMinusModIsDenomMultQuot (n * clustSize) DirentSize in DirentSize * k) {n}
+                                            (rewrite numerMinusModIsDenomMultQuot (n * clustSize) DirentSize in DirentSize * (MkFinInc kv kp)) {n}
                                             {r = modNatNZ (n * clustSize) DirentSize SIsNonZero}) + sum ts)
 
 public export
@@ -93,7 +82,6 @@ data Filesystem : NodeParams -> Nat -> Type where
     Root : {0 clustSize : Nat} ->
            {0 clustNZ : NonZero clustSize} ->
            {0 n : Nat} ->
-           -- {0 k : FinInc (divNatNZ (n * clustSize) DirentSize SIsNonZero)} ->
            {0 k : Nat} ->
            (0 klte : LTE k (divNatNZ (n * clustSize) DirentSize SIsNonZero)) =>
            {0 ns : VectNat k} ->
