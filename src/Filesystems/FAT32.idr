@@ -1,11 +1,11 @@
 module Filesystems.FAT32
 
-import Data.Nat
-import Data.Nat.Division
-import Data.Monomorphic.Vect
-import Data.FinInc
-import Data.Fuel
-import Deriving.DepTyCheck.Gen
+import public Data.Nat
+import public Data.Nat.Division
+import public Data.Monomorphic.Vect
+import public Data.FinInc
+import public Data.Fuel
+import public Deriving.DepTyCheck.Gen
 
 %default total
 
@@ -75,7 +75,7 @@ data Node : NodeParams -> (n : Nat) -> (m : Nat) -> FinInc n -> FinInc m -> Type
           {0 cs : HVectFinInc (finIncToNat k) ns} ->
           {0 ts : HVectFinInc (finIncToNat k) ms} ->
           (meta : Metadata) ->
-          (entries : HVectMaybeNode cfg (finIncToNat k) ns ms cs ts) ->
+          (entries : HVectMaybeNode (MkNodeParams clustSize clustNZ) (finIncToNat k) ns ms cs ts) ->
           -- let clusterNum = divCeilFlipWeak clustSize 
           --                                   @{clustNZ} 
           --                                   (rewrite numerMinusModIsDenomMultQuot (n * clustSize) DirentSize in DirentSize * k) {n}
@@ -93,12 +93,14 @@ data Filesystem : NodeParams -> Nat -> Type where
     Root : {0 clustSize : Nat} ->
            {0 clustNZ : NonZero clustSize} ->
            {0 n : Nat} ->
-           {0 k : FinInc (divNatNZ (n * clustSize) DirentSize SIsNonZero)} ->
-           {0 ns : VectNat (finIncToNat k)} ->
-           {0 ms : VectNat (finIncToNat k)} ->
-           {0 cs : HVectFinInc (finIncToNat k) ns} ->
-           {0 ts : HVectFinInc (finIncToNat k) ms} ->
-           (entries : HVectMaybeNode cfg (finIncToNat k) ns ms cs ts) ->
+           -- {0 k : FinInc (divNatNZ (n * clustSize) DirentSize SIsNonZero)} ->
+           {0 k : Nat} ->
+           (0 klte : LTE k (divNatNZ (n * clustSize) DirentSize SIsNonZero)) =>
+           {0 ns : VectNat k} ->
+           {0 ms : VectNat k} ->
+           {0 cs : HVectFinInc k ns} ->
+           {0 ts : HVectFinInc k ms} ->
+           (entries : HVectMaybeNode (MkNodeParams clustSize clustNZ) k ns ms cs ts) ->
            Filesystem (MkNodeParams clustSize clustNZ) (n + sum ms)
 
 public export
