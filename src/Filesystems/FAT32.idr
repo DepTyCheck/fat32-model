@@ -56,7 +56,7 @@ namespace HVectMaybeNode
 
 public export
 data Node : NodeParams -> (n : Nat) -> (m : Nat) -> FinInc n -> FinInc m -> Type where
-    File : forall clustSize, clustNZ, n, m.
+    File : forall clustSize, clustNZ, n.
            {0 k : FinInc (n * clustSize)} ->
            (meta : Metadata) ->
            Node (MkNodeParams clustSize clustNZ) n n (divCeilFlip clustSize @{clustNZ} k) (divCeilFlip clustSize @{clustNZ} k)
@@ -83,7 +83,7 @@ data Filesystem : NodeParams -> Nat -> Type where
            {0 clustNZ : NonZero clustSize} ->
            {0 n : Nat} ->
            {0 k : Nat} ->
-           (0 klte : LTE k (divNatNZ (n * clustSize) DirentSize SIsNonZero)) =>
+           {0 klte : LTE k (divNatNZ (n * clustSize) DirentSize SIsNonZero)} ->
            {0 ns : VectNat k} ->
            {0 ms : VectNat k} ->
            {0 cs : HVectFinInc k ns} ->

@@ -1,12 +1,12 @@
 module Data.FinInc
 
-import Data.Nat
-import Data.Nat.Division
-import Data.Nat.Order
-import Data.Nat.Order.Properties
-import Decidable.Decidable
-import Decidable.Equality
-import Syntax.PreorderReasoning
+import public Data.Nat
+import public Data.Nat.Division
+import public Data.Nat.Order
+import public Data.Nat.Order.Properties
+import public Decidable.Decidable
+import public Decidable.Equality
+import public Syntax.PreorderReasoning
 
 %default total
 

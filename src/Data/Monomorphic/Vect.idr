@@ -1,7 +1,7 @@
 module Data.Monomorphic.Vect
 
-import Data.Nat
-import Data.FinInc
+import public Data.Nat
+import public Data.FinInc
 
 %default total
 
