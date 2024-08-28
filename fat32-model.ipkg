@@ -17,8 +17,8 @@ depends = deptycheck
         , contrib
 
 -- modules to install
-modules = Filesystems.FAT32
-        , Filesystems.FAT32.Derived
+-- modules = Filesystems.FAT32
+--         , Filesystems.FAT32.Derived
 
 -- main file (i.e. file to load at REPL)
 main = Main
