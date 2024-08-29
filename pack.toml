@@ -3,8 +3,20 @@ type = "local"
 path = "."
 ipkg = "fat32-model.ipkg"
 
+[idris2]
+type = "github"
+url = "https://github.com/elkcl/Idris2"
+commit = "latest:main"
+ipkg = "idris2.ipkg"
+
 [custom.all.contrib-nat-division]
 type = "github"
 url = "https://github.com/elkcl/idris2-contrib-nat-division"
-commit = "main"
+commit = "latest:main"
 ipkg = "contrib-nat-division.ipkg"
+
+[custom.all.deptycheck]
+type = "github"
+url = "https://github.com/buzden/deptycheck"
+commit = "latest:master"
+ipkg = "deptycheck.ipkg"
