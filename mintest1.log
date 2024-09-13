@@ -1,0 +1,91 @@
+[ info ] Found local config at /home/elk/Development/deptycheck-test/pack.toml
+[ info ] Using package collection nightly-240825
+[ build ] 4/5: Building Filesystems.FAT32.Derived (src/Filesystems/FAT32/Derived.idr)
+[ build ] LOG deptycheck.derive.namesInfo:5: ____ start ____
+[ build ] LOG deptycheck.derive.namesInfo:5: ^^^^  end  ^^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.Filesystem[0] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Filesystem[0] Root __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Filesystem[0] Root ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.Filesystem[0] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.Filesystem[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.Filesystem[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] Nil __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] Nil ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] (::) __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] (::) ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.Nat.LTE[1] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[1] LTEZero __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[1] LTEZero ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[1] LTESucc __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[1] LTESucc ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Data.Nat.LTE[1] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Data.Nat.LTE[1] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.Nat.LTE[1] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Prelude.Types.Nat[] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Prelude.Types.Nat[] Z __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Prelude.Types.Nat[] Z ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Prelude.Types.Nat[] S __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Prelude.Types.Nat[] S ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Prelude.Types.Nat[] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Prelude.Types.Nat[] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Prelude.Types.Nat[] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.MaybeNode.MaybeNode[0, 1, 2] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0, 1, 2] Nothing __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0, 1, 2] Nothing ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0, 1, 2] Just __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0, 1, 2] Just ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.MaybeNode.MaybeNode[0, 1, 2] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.MaybeNode.MaybeNode[0, 1, 2] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.MaybeNode.MaybeNode[0, 1, 2] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1, 2, 3] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1, 2, 3] Nil __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1, 2, 3] Nil ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1, 2, 3] (::) __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1, 2, 3] (::) ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1, 2, 3] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1, 2, 3] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1, 2, 3] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] Nothing __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] Nothing ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] Just __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] Just ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.Node[0] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Node[0] File __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Node[0] File ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Node[0] Dir __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Node[0] Dir ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.Node[0] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.Node[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.Node[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.FinInc.FinInc[] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Data.FinInc.FinInc[] MkFinInc __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Data.FinInc.FinInc[] MkFinInc ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Data.FinInc.FinInc[] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Data.FinInc.FinInc[] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.FinInc.FinInc[] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.Node[0, 1, 2] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Node[0, 1, 2] File __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Node[0, 1, 2] File ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Node[0, 1, 2] Dir __ start __
+[ build ] Error: While processing right hand side of genFilesystem. Error during
+[ build ] reflection: Argument #2 is not supported yet, argument expression: Prelude.Num.(+) {ty = Prelude.Types.Nat} {__con = Prelude.Types.Num implementation at Prelude.Types:66:1--71:33} n (Prelude.Num.(*) {ty = Prelude.Types.Nat} {__con = Prelude.Types.Num implementation at Prelude.Types:66:1--71:33} kv ms), reason: name `Prelude.Num.(+)` is not a constructor
+[ build ] 
+[ build ] Filesystems.FAT32.Derived:12:35--12:44
+[ build ]  08 | %default total
+[ build ]  09 | 
+[ build ]  10 | %logging "deptycheck.derive" 5
+[ build ]  11 | 
+[ build ]  12 | Filesystems.FAT32.genFilesystem = deriveGen
+[ build ]                                         ^^^^^^^^^
+[ build ] 
+[ fatal ] Error when executing system command.
+          Command: "/home/elk/.pack/install/f69cbf9b845e930c62446fe8b58a224774a18dbf/idris2/bin/idris2" "--build" "deptycheck-test.ipkg"
+          Error code: 1

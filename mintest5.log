@@ -1,0 +1,78 @@
+[ info ] Found local config at /home/elk/Development/deptycheck-test/pack.toml
+[ info ] Using package collection nightly-240825
+[ build ] 4/5: Building Filesystems.FAT32.Derived (src/Filesystems/FAT32/Derived.idr)
+[ build ] LOG deptycheck.derive.namesInfo:5: ____ start ____
+[ build ] LOG deptycheck.derive.namesInfo:5: ^^^^  end  ^^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.Filesystem[0] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Filesystem[0] Root __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Filesystem[0] Root ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.Filesystem[0] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.Filesystem[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.Filesystem[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] Nil __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] Nil ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] (::) __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] (::) ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.HVectMaybeNode.HVectMaybeNode[0, 1] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.Nat.LTE[1] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[1] LTEZero __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[1] LTEZero ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[1] LTESucc __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[1] LTESucc ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Data.Nat.LTE[1] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Data.Nat.LTE[1] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.Nat.LTE[1] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Prelude.Types.Nat[] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Prelude.Types.Nat[] Z __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Prelude.Types.Nat[] Z ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Prelude.Types.Nat[] S __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Prelude.Types.Nat[] S ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Prelude.Types.Nat[] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Prelude.Types.Nat[] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Prelude.Types.Nat[] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] Nothing __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] Nothing ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] Just __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] Just ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.MaybeNode.MaybeNode[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.Node[0] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Node[0] File __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Filesystems.FAT32.Node[0] File ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.Node[0] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Filesystems.FAT32.Node[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Filesystems.FAT32.Node[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.FinInc.FinInc[] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Data.FinInc.FinInc[] MkFinInc __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Data.FinInc.FinInc[] MkFinInc ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Data.FinInc.FinInc[] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Data.FinInc.FinInc[] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.FinInc.FinInc[] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.Nat.LTE[] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[] LTEZero __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[] LTEZero ^^  end  ^^
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[] LTESucc __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Data.Nat.LTE[] LTESucc ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Data.Nat.LTE[] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Data.Nat.LTE[] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.Nat.LTE[] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.FinInc.FinInc[0] ___ start ___
+[ build ] LOG deptycheck.derive.consBody:5: Data.FinInc.FinInc[0] MkFinInc __ start __
+[ build ] LOG deptycheck.derive.consBody:5: Data.FinInc.FinInc[0] MkFinInc ^^  end  ^^
+[ build ] LOG deptycheck.derive.consRec:5: Data.FinInc.FinInc[0] ___ start ___
+[ build ] LOG deptycheck.derive.consRec:5: Data.FinInc.FinInc[0] ^^^  end  ^^^
+[ build ] LOG deptycheck.derive.type:5: Data.FinInc.FinInc[0] ^^^  end  ^^^
+[ build ] Warning: Unreachable clause: (<<Filesystems.FAT32.Root>>) (^outmost-fuel^) outer^<cfg> inter^<{arg:16357}> (^fuel_arg^) _ _
+[ build ] 
+[ build ] Warning: Unreachable clause: (<<Filesystems.FAT32.File>>) (^outmost-fuel^) outer^<cfg> inter^<{arg:16323}> (^fuel_arg^) _ _
+[ build ] 
+[ build ] Error: While processing right hand side of genFilesystem. Can't solve constraint between: mult n clustSize and minus (n * clustSize) 0.
+[ build ] 
+[ fatal ] Error when executing system command.
+          Command: "/home/elk/.pack/install/f69cbf9b845e930c62446fe8b58a224774a18dbf/idris2/bin/idris2" "--build" "deptycheck-test.ipkg"
+          Error code: 1
