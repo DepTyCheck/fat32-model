@@ -18,5 +18,6 @@ ipkg = "contrib-nat-division.ipkg"
 [custom.all.deptycheck]
 type = "github"
 url = "https://github.com/buzden/deptycheck"
-commit = "e60d3706d22ae00b79b48007f0bda6917acd7869"
+# commit = "e60d3706d22ae00b79b48007f0bda6917acd7869"
+commit = "e702b57a0419221963e45e883067c18d620cd3b2"
 ipkg = "deptycheck.ipkg"

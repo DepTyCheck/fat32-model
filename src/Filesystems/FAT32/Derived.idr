@@ -9,9 +9,9 @@ import public Deriving.DepTyCheck.Gen
 
 %logging "deptycheck.derive" 5
 
--- Filesystems.FAT32.genFilesystem = deriveGen
+Filesystems.FAT32.genFilesystem = deriveGen
 
-%language ElabReflection
+-- %language ElabReflection
 
--- %runElab deriveGenPrinter {printTTImp = False} (Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (maxClust ** Filesystem cfg maxClust))
+-- genFilesystem = deriveGenFor (Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (maxClust ** Filesystem cfg maxClust))
 

@@ -94,8 +94,5 @@ data Filesystem : NodeParams -> Nat -> Type where
            (entries : HVectMaybeNode (MkNodeParams clustSize clustNZ) k ns ms cs ts) ->
            Filesystem (MkNodeParams clustSize clustNZ) (n + sum ms)
 
--- fsShow : Show (Filesystem cfg n)
--- fsShow = %runElab (deriveIndexed "Filesystem" [Derive.Show.Show])
-
--- public export
--- genFilesystem : Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (maxClust ** Filesystem cfg maxClust)
+public export
+genFilesystem : Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (maxClust ** Filesystem cfg maxClust)
