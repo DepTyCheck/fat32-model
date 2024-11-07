@@ -2,6 +2,7 @@ module Data.Monomorphic.Vect
 
 import public Data.Nat
 import public Data.FinInc
+import Derive.Prelude
 
 %default total
 
@@ -38,3 +39,9 @@ namespace HVectFinInc
     sum : {ns : VectNat k} -> HVectFinInc k ns -> FinInc (sum ns)
     sum [] = MkFinInc 0 LTEZero
     sum (x :: xs) = x + sum xs
+
+%language ElabReflection
+%runElab deriveIndexed "VectNat" [Show]
+%runElab deriveIndexed "VectBits8" [Show]
+%runElab deriveIndexed "VectFinInc" [Show]
+%runElab deriveIndexed "HVectFinInc" [Show]

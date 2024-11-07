@@ -6,10 +6,8 @@ import public Data.Monomorphic.Vect
 import public Data.FinInc
 import public Data.Fuel
 import public Deriving.DepTyCheck.Gen
-import public Derive.Show
-import public Language.Reflection.Derive
+import public Derive.Prelude
 
-%language ElabReflection
 %default total
 
 namespace Constants
@@ -96,3 +94,10 @@ data Filesystem : NodeParams -> Nat -> Type where
 
 public export
 genFilesystem : Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (maxClust ** Filesystem cfg maxClust)
+
+%language ElabReflection
+%runElab deriveIndexed "NonZero" [Show]
+%runElab derive "NodeParams" [Show]
+%runElab derive "Metadata" [Show]
+%runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HVectMaybeNode"]
+%runElab deriveIndexed "Filesystem" [Show]

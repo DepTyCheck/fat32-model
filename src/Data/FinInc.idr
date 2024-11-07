@@ -7,6 +7,7 @@ import public Data.Nat.Order.Properties
 import public Decidable.Decidable
 import public Decidable.Equality
 import public Syntax.PreorderReasoning
+import Derive.Prelude
 
 %default total
 
@@ -93,3 +94,7 @@ divCeilFlipWeak b @{nz} (MkFinInc va pa) = MkFinInc (divCeilNZ va b nz) (divCeil
 public export
 divCeilFlip : {n : Nat} -> (b : Nat) -> (0 _ : NonZero b) => (a : FinInc (n * b)) -> FinInc n
 divCeilFlip b @{nz} (MkFinInc va pa) = MkFinInc (divCeilNZ va b nz) (divCeilNZBounds va b n nz pa)
+
+%language ElabReflection
+%runElab deriveIndexed "LTE" [Show]
+%runElab deriveIndexed "FinInc" [Show]
