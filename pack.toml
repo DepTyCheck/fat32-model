@@ -3,11 +3,11 @@ type = "local"
 path = "."
 ipkg = "fat32-model.ipkg"
 
-[idris2]
-type = "github"
-url = "https://github.com/elkcl/Idris2"
-commit = "latest:main"
-ipkg = "idris2.ipkg"
+# [idris2]
+# type = "github"
+# url = "https://github.com/elkcl/Idris2"
+# commit = "latest:main"
+# ipkg = "idris2.ipkg"
 
 [custom.all.contrib-nat-division]
 type = "github"
@@ -15,10 +15,10 @@ url = "https://github.com/elkcl/idris2-contrib-nat-division"
 commit = "latest:main"
 ipkg = "contrib-nat-division.ipkg"
 
-[custom.all.deptycheck]
-type = "github"
-url = "https://github.com/buzden/deptycheck"
-# commit = "e60d3706d22ae00b79b48007f0bda6917acd7869"
-# commit = "e702b57a0419221963e45e883067c18d620cd3b2"
-commit = "72b514ee4c6c394a2dcfc5c1028ec55a1ecd8aff"
-ipkg = "deptycheck.ipkg"
+# [custom.all.deptycheck]
+# type = "github"
+# url = "https://github.com/buzden/deptycheck"
+# # commit = "e60d3706d22ae00b79b48007f0bda6917acd7869"
+# # commit = "e702b57a0419221963e45e883067c18d620cd3b2"
+# commit = "72b514ee4c6c394a2dcfc5c1028ec55a1ecd8aff"
+# ipkg = "deptycheck.ipkg"

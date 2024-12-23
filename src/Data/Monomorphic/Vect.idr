@@ -23,12 +23,6 @@ namespace VectBits8
         Nil : VectBits8 0
         (::) : Bits8 -> VectBits8 n -> VectBits8 (S n)
 
-namespace VectFinInc
-    public export
-    data VectFinInc : Nat -> Nat -> Type where
-        Nil : VectFinInc 0 n
-        (::) : FinInc n -> VectFinInc k n -> VectFinInc (S k) n
-
 namespace HVectFinInc
     public export
     data HVectFinInc : (k : Nat) -> VectNat k -> Type where
@@ -43,5 +37,4 @@ namespace HVectFinInc
 %language ElabReflection
 %runElab deriveIndexed "VectNat" [Show]
 %runElab deriveIndexed "VectBits8" [Show]
-%runElab deriveIndexed "VectFinInc" [Show]
 %runElab deriveIndexed "HVectFinInc" [Show]

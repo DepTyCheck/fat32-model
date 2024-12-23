@@ -14,7 +14,7 @@ import System
 
 
 Cfg : NodeParams
-Cfg = MkNodeParams 32 SIsNonZero
+Cfg = MkNodeParams 32
 
 -- vals = unGenTryN 1 (mkStdGen 9798294) (genFilesystem (limit 2) Cfg)
 -- 1450272 4

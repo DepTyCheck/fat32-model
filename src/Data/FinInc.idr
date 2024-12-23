@@ -11,6 +11,14 @@ import Derive.Prelude
 
 %default total
 
+%hide Data.Nat.divCeilNZ
+
+public export
+divCeilNZ : Nat -> (y: Nat) -> (0 _ : IsSucc y) -> Nat
+divCeilNZ x y p = case (modNatNZ x y p) of
+  Z   => divNatNZ x y p
+  S _ => S (divNatNZ x y p)
+
 public export
 record FinInc n where
     constructor MkFinInc
@@ -25,23 +33,17 @@ public export
 (*) : {n : Nat} -> (a : Nat) -> (b : FinInc n) -> FinInc (a * n)
 (*) a (MkFinInc val prf) = MkFinInc (a * val) (multLteMonotoneRight a val n prf)
 
--- public export
--- divCeilNZ : Nat -> (y: Nat) -> (0 _ : NonZero y) -> Nat
--- divCeilNZ x y p = case (modNatNZ x y p) of
---   Z   => divNatNZ x y p
---   S _ => S (divNatNZ x y p)
+public export
+divModMult : (n : Nat) -> (b : Nat) -> (0 nz : IsSucc b) -> (divNatNZ (n * b) b nz = n, modNatNZ (n * b) b nz = 0)
+divModMult _ 0 ItIsSucc impossible
+divModMult n (S k) ItIsSucc = DivisionTheoremUniqueness (n * (S k)) (S k) ItIsSucc n 0 ltZero (sym (plusZeroRightNeutral (n * (S k))))
 
 public export
-divModMult : (n : Nat) -> (b : Nat) -> (0 nz : NonZero b) -> (divNatNZ (n * b) b nz = n, modNatNZ (n * b) b nz = 0)
-divModMult _ 0 SIsNonZero impossible
-divModMult n (S k) SIsNonZero = DivisionTheoremUniqueness (n * (S k)) (S k) SIsNonZero n 0 ltZero (sym (plusZeroRightNeutral (n * (S k))))
-
-public export
-divMultIsNumer : (n : Nat) -> (b : Nat) -> (0 nz : NonZero b) -> divNatNZ (n * b) b nz = n
+divMultIsNumer : (n : Nat) -> (b : Nat) -> (0 nz : IsSucc b) -> divNatNZ (n * b) b nz = n
 divMultIsNumer n b nz = fst (divModMult n b nz)
 
 public export
-modMultIsZero : (n : Nat) -> (b : Nat) -> (0 nz : NonZero b) -> modNatNZ (n * b) b nz = 0
+modMultIsZero : (n : Nat) -> (b : Nat) -> (0 nz : IsSucc b) -> modNatNZ (n * b) b nz = 0
 modMultIsZero n b nz = snd (divModMult n b nz)
 
 public export
@@ -50,22 +52,22 @@ plusLeftLTCancel a b 0 ltr = ltr
 plusLeftLTCancel a b (S k) ltr = plusLeftLTCancel a b k (fromLteSucc ltr)
 
 public export
-multRightLTCancel : (a : Nat) -> (b : Nat) -> (r : Nat) -> (0 _ : NonZero r) -> LT (a * r) (b * r) -> LT a b
-multRightLTCancel 0 0 (S x) SIsNonZero ltr = ltr
-multRightLTCancel (S k) 0 (S x) SIsNonZero ltr = void (zeroNeverGreater ltr)
-multRightLTCancel 0 (S k) (S x) SIsNonZero ltr = LTESucc LTEZero
-multRightLTCancel (S j) (S k) r@(S x) SIsNonZero ltr = LTESucc (multRightLTCancel j k r SIsNonZero (plusLeftLTCancel (j * r) (k * r) r ltr))
+multRightLTCancel : (a : Nat) -> (b : Nat) -> (r : Nat) -> (0 _ : IsSucc r) -> LT (a * r) (b * r) -> LT a b
+multRightLTCancel 0 0 (S x) ItIsSucc ltr = ltr
+multRightLTCancel (S k) 0 (S x) ItIsSucc ltr = void (zeroNeverGreater ltr)
+multRightLTCancel 0 (S k) (S x) ItIsSucc ltr = LTESucc LTEZero
+multRightLTCancel (S j) (S k) r@(S x) ItIsSucc ltr = LTESucc (multRightLTCancel j k r ItIsSucc (plusLeftLTCancel (j * r) (k * r) r ltr))
 
 public export
-divNatNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (0 nz : NonZero b) -> LT a (n * b) -> LT (divNatNZ a b nz) n
-divNatNZBounds a b@(S b') n SIsNonZero plt = multRightLTCancel (divNatNZ a b SIsNonZero) n b SIsNonZero (transitive plt2 plt1)
-  where plt1 : LT (modNatNZ a b SIsNonZero + (divNatNZ a b SIsNonZero * b)) (n * b)
-        plt1 = rewrite sym (DivisionTheorem a b SIsNonZero SIsNonZero) in plt
-        plt2 : LTE (S (divNatNZ a b SIsNonZero * b)) (S (modNatNZ a b SIsNonZero + (divNatNZ a b SIsNonZero * b)))
-        plt2 = LTESucc (rewrite plusCommutative (modNatNZ a b SIsNonZero) (divNatNZ a b SIsNonZero * b) in lteAddRight (divNatNZ a b SIsNonZero * b))
+divNatNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (0 nz : IsSucc b) -> LT a (n * b) -> LT (divNatNZ a b nz) n
+divNatNZBounds a b@(S b') n ItIsSucc plt = multRightLTCancel (divNatNZ a b ItIsSucc) n b ItIsSucc (transitive plt2 plt1)
+  where plt1 : LT (modNatNZ a b ItIsSucc + (divNatNZ a b ItIsSucc * b)) (n * b)
+        plt1 = rewrite sym (DivisionTheorem a b ItIsSucc ItIsSucc) in plt
+        plt2 : LTE (S (divNatNZ a b ItIsSucc * b)) (S (modNatNZ a b ItIsSucc + (divNatNZ a b ItIsSucc * b)))
+        plt2 = LTESucc (rewrite plusCommutative (modNatNZ a b ItIsSucc) (divNatNZ a b ItIsSucc * b) in lteAddRight (divNatNZ a b ItIsSucc * b))
 
 public export
-divCeilNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (0 nz : NonZero b) -> LTE a (n * b) -> LTE (divCeilNZ a b nz) n
+divCeilNZBounds : (a : Nat) -> (b : Nat) -> (n : Nat) -> (0 nz : IsSucc b) -> LTE a (n * b) -> LTE (divCeilNZ a b nz) n
 divCeilNZBounds a b n nz ltep with (decomposeLte a (n * b) ltep)
   divCeilNZBounds a b n nz ltep | (Left x) with (modNatNZ a b nz)
     divCeilNZBounds a b n nz ltep | (Left x) | 0 = lteSuccLeft (divNatNZBounds a b n nz x)
@@ -76,7 +78,7 @@ divCeilNZBounds a b n nz ltep with (decomposeLte a (n * b) ltep)
     rewrite (divMultIsNumer n b nz) in reflexive
 
 public export
-numerMinusModIsDenomMultQuot : (0 a : Nat) -> (0 b : Nat) -> (0 nz : NonZero b) => minus a (modNatNZ a b nz) = b * divNatNZ a b nz
+numerMinusModIsDenomMultQuot : (0 a : Nat) -> (0 b : Nat) -> (0 nz : IsSucc b) => minus a (modNatNZ a b nz) = b * divNatNZ a b nz
 numerMinusModIsDenomMultQuot a b = Calc $
     |~ (a `minus` modNatNZ a b nz)
     ~~ (modNatNZ a b nz + divNatNZ a b nz * b `minus` modNatNZ a b nz) ...(cong (`minus` modNatNZ a b nz) $ DivisionTheorem a b nz nz)
@@ -84,15 +86,15 @@ numerMinusModIsDenomMultQuot a b = Calc $
     ~~ (b * divNatNZ a b nz) ...(multCommutative (divNatNZ a b nz) b)
 
 public export
-divCeilFlipWeak : {n : Nat} -> {r : Nat} -> (b : Nat) -> (0 _ : NonZero b) => (a : FinInc (minus (n * b) r)) -> FinInc n
+divCeilFlipWeak : {n : Nat} -> {r : Nat} -> (b : Nat) -> (0 _ : IsSucc b) => (a : FinInc (minus (n * b) r)) -> FinInc n
 divCeilFlipWeak b @{nz} (MkFinInc va pa) = MkFinInc (divCeilNZ va b nz) (divCeilNZBounds va b n nz (transitive pa (minusLTE r (n * b))))
 
 -- public export
--- divCeilFlip : {n : Nat} -> (b : Nat) -> (0 _ : NonZero b) => (a : FinInc (n * b)) -> FinInc n
+-- divCeilFlip : {n : Nat} -> (b : Nat) -> (0 _ : IsSucc b) => (a : FinInc (n * b)) -> FinInc n
 -- divCeilFlip b @{nz} a = divCeilFlipWeak b @{nz} (rewrite minusZeroRight (n * b) in a) {r = 0}
 
 public export
-divCeilFlip : {n : Nat} -> (b : Nat) -> (0 _ : NonZero b) => (a : FinInc (n * b)) -> FinInc n
+divCeilFlip : {n : Nat} -> (b : Nat) -> (0 _ : IsSucc b) => (a : FinInc (n * b)) -> FinInc n
 divCeilFlip b @{nz} (MkFinInc va pa) = MkFinInc (divCeilNZ va b nz) (divCeilNZBounds va b n nz pa)
 
 %language ElabReflection

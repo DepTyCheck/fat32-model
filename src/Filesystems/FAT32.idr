@@ -23,7 +23,7 @@ public export
 record NodeParams where
     constructor MkNodeParams
     clusterSize : Nat
-    clusterSizeNZ : NonZero clusterSize
+    {auto 0 clusterSizeNZ : IsSucc clusterSize}
 
 public export
 record Metadata where
@@ -46,57 +46,44 @@ namespace HVectMaybeNode
     public export
     data HVectMaybeNode : NodeParams -> (k : Nat) -> (ns : VectNat k) -> (ms : VectNat k) -> HVectFinInc k ns -> HVectFinInc k ms -> Type where
         Nil : HVectMaybeNode cfg 0 [] [] [] []
-        (::) : forall cfg, n, ns, m, ms.
-               {0 cur : FinInc n} ->
-               {0 tot : FinInc m} ->
-               {0 cs : HVectFinInc k ns} ->
-               {0 ts : HVectFinInc k ms} ->
+        (::) : forall cfg, n, ns, m, ms, cs, ts, cur, tot.
                MaybeNode cfg n m cur tot -> 
                HVectMaybeNode cfg k ns ms cs ts -> 
                HVectMaybeNode cfg (S k) (n :: ns) (m :: ms) (cur :: cs) (tot :: ts)
 
 public export
 data Node : NodeParams -> (n : Nat) -> (m : Nat) -> FinInc n -> FinInc m -> Type where
-    File : forall clustSize, clustNZ, n.
+    File : forall clustSize, n.
+           (0 clustNZ : IsSucc clustSize) =>
            {0 k : FinInc (n * clustSize)} ->
            (meta : Metadata) ->
-           Node (MkNodeParams clustSize clustNZ) n n (divCeilFlip clustSize @{clustNZ} k) (divCeilFlip clustSize @{clustNZ} k)
-    Dir : forall clustSize, clustNZ, n.
-          {0 kv : Nat} ->
-          {0 kp : LTE kv (divNatNZ (n * clustSize) DirentSize SIsNonZero)} ->
-          {0 ns : VectNat kv} ->
-          {0 ms : VectNat kv} ->
-          {0 cs : HVectFinInc kv ns} ->
-          {0 ts : HVectFinInc kv ms} ->
+           Node (MkNodeParams clustSize) n n (divCeilFlip clustSize k) (divCeilFlip clustSize k)
+    Dir : forall clustSize, n, kv, ns, ms, cs, ts.
+          (0 clustNZ : IsSucc clustSize) =>
+          {0 kp : LTE kv (divNatNZ (n * clustSize) DirentSize %search)} ->
           (meta : Metadata) ->
-          (entries : HVectMaybeNode (MkNodeParams clustSize clustNZ) kv ns ms cs ts) ->
-          Node (MkNodeParams clustSize clustNZ) n (n + sum ms) (divCeilFlipWeak clustSize 
+          (entries : HVectMaybeNode (MkNodeParams clustSize) kv ns ms cs ts) ->
+          Node (MkNodeParams clustSize) n (n + sum ms) (divCeilFlipWeak clustSize 
                                             @{clustNZ} 
                                             (rewrite numerMinusModIsDenomMultQuot (n * clustSize) DirentSize in DirentSize * (MkFinInc kv kp))
-                                            {r = modNatNZ (n * clustSize) DirentSize SIsNonZero}) ((divCeilFlipWeak clustSize 
+                                            {r = modNatNZ (n * clustSize) DirentSize %search}) ((divCeilFlipWeak clustSize 
                                             @{clustNZ} 
                                             (rewrite numerMinusModIsDenomMultQuot (n * clustSize) DirentSize in DirentSize * (MkFinInc kv kp)) {n}
-                                            {r = modNatNZ (n * clustSize) DirentSize SIsNonZero}) + sum ts)
+                                            {r = modNatNZ (n * clustSize) DirentSize %search}) + sum ts)
 
 public export
 data Filesystem : NodeParams -> Nat -> Type where
-    Root : {0 clustSize : Nat} ->
-           {0 clustNZ : NonZero clustSize} ->
-           {0 n : Nat} ->
-           {0 k : Nat} ->
-           {0 klte : LTE k (divNatNZ (n * clustSize) DirentSize SIsNonZero)} ->
-           {0 ns : VectNat k} ->
-           {0 ms : VectNat k} ->
-           {0 cs : HVectFinInc k ns} ->
-           {0 ts : HVectFinInc k ms} ->
-           (entries : HVectMaybeNode (MkNodeParams clustSize clustNZ) k ns ms cs ts) ->
-           Filesystem (MkNodeParams clustSize clustNZ) (n + sum ms)
+    Root : forall clustSize, n, k, ns, ms, cs, ts.
+           (0 clustNZ : IsSucc clustSize) =>
+           {0 klte : LTE k (divNatNZ (n * clustSize) DirentSize %search)} ->
+           (entries : HVectMaybeNode (MkNodeParams clustSize) k ns ms cs ts) ->
+           Filesystem (MkNodeParams clustSize) (n + sum ms)
 
 public export
 genFilesystem : Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (maxClust ** Filesystem cfg maxClust)
 
 %language ElabReflection
-%runElab deriveIndexed "NonZero" [Show]
+%runElab deriveIndexed "IsSucc" [Show]
 %runElab derive "NodeParams" [Show]
 %runElab derive "Metadata" [Show]
 %runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HVectMaybeNode"]
