@@ -104,12 +104,13 @@ namespace HVectMaybeNodeB
                HVectMaybeNodeB cfg k nodes -> 
                HVectMaybeNodeB cfg (S k) (node :: nodes)
 
+-- TODO: replace HVectMaybeNodeB with All since we aren't deriving the generator anyway
 public export
 data NodeB : {0 c : FinInc n} -> {0 t : FinInc m} -> Node cfg n m c t -> Type where
-    FileB : VectBits8 FilenameLength -> 
+    FileB : (0 clustNZ : IsSucc clustSize) =>
+            VectBits8 FilenameLength -> 
             VectBits8 (cv * clustSize) -> 
-            (node : Node cfg n n (MkFinInc cv cp) (MkFinInc cv cp)) -> 
-            NodeB node
+            NodeB (File meta {k} {clustSize})
     DirB : (0 clustNZ : IsSucc clustSize) =>
            {0 ents : HVectMaybeNode (MkNodeParams clustSize) kv ns ms cs ts} ->
            VectBits8 FilenameLength ->
