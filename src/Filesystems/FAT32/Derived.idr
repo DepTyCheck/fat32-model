@@ -9,7 +9,7 @@ import public Deriving.DepTyCheck.Gen
 
 %logging "deptycheck.derive" 5
 
-Filesystems.FAT32.genFilesystem = deriveGen
+-- Filesystems.FAT32.genFilesystem = deriveGen
 
 -- %language ElabReflection
 

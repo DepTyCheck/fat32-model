@@ -23,6 +23,16 @@ namespace VectBits8
         Nil : VectBits8 0
         (::) : Bits8 -> VectBits8 n -> VectBits8 (S n)
 
+    public export
+    fromVect : Vect n Bits8 -> VectBits8 n
+    fromVect [] = []
+    fromVect (x :: xs) = x :: fromVect xs
+
+    public export
+    (++) : VectBits8 n -> VectBits8 m -> VectBits8 (n + m)
+    [] ++ ys = ys
+    (x :: xs) ++ ys = x :: (xs ++ ys)
+
 namespace HVectFinInc
     public export
     data HVectFinInc : (k : Nat) -> VectNat k -> Type where

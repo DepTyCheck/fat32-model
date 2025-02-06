@@ -43,17 +43,40 @@ namespace MaybeNode
         Nothing : MaybeNode cfg n m cur tot
         Just : Node cfg n m tot cur -> MaybeNode cfg n m tot cur
 
+public export
+data NodeArgs : Type where
+    MkNodeArgs : (n : Nat) -> (m : Nat) -> (cur : FinInc n) -> (tot : FinInc m) -> NodeArgs
+
+namespace VectNodeArgs
+    public export
+    data VectNodeArgs : Nat -> Type where
+        Nil : VectNodeArgs 0
+        (::) : NodeArgs -> VectNodeArgs k -> VectNodeArgs (S k)
+
 namespace HVectMaybeNode
     public export
     data HVectMaybeNode : NodeParams -> (k : Nat) -> (ns : VectNat k) -> (ms : VectNat k) -> HVectFinInc k ns -> HVectFinInc k ms -> Type where
         Nil : HVectMaybeNode cfg 0 [] [] [] []
+        (::) : forall cfg, n, cur, ns, m, ms, cs, ts, tot.
+               MaybeNode cfg n m cur tot -> 
+               HVectMaybeNode cfg k ns ms cs ts -> 
+               HVectMaybeNode cfg (S k) (n :: ns) (m :: ms) (cur :: cs) (tot :: ts)
+
+namespace HVectMaybeNode''
+    public export
+    data HVectMaybeNode'' : NodeParams -> (k : Nat) -> VectNodeArgs k -> Type where
+        Nil : HVectMaybeNode'' cfg 0 []
         (::) : forall cfg.
                {n : _} ->
                {cur : _} ->
                forall ns, m, ms, cs, ts, tot.
                MaybeNode cfg n m cur tot -> 
-               HVectMaybeNode cfg k ns ms cs ts -> 
-               HVectMaybeNode cfg (S k) (n :: ns) (m :: ms) (cur :: cs) (tot :: ts)
+               HVectMaybeNode'' cfg k nargs -> 
+               HVectMaybeNode'' cfg (S k) ((MkNodeArgs n m cur tot) :: nargs)
+
+public export
+HVectMaybeNode' : NodeParams -> (k : Nat) -> Vect k NodeArgs -> Type
+HVectMaybeNode' cfg k nargs = All (\(MkNodeArgs n m cur tot) => Maybe (Node cfg n m cur tot)) nargs
 
 public export
 data Node : NodeParams -> (n : Nat) -> (m : Nat) -> FinInc n -> FinInc m -> Type where
@@ -89,6 +112,9 @@ data Filesystem : NodeParams -> Nat -> Type where
 public export
 genFilesystem : Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (maxClust ** Filesystem cfg maxClust)
 
+public export
+Filename : Type
+Filename = VectBits8 FilenameLength
 
 public export
 data NodeB : {0 c : FinInc n} -> {0 t : FinInc m} -> Node cfg n m c t -> Type
@@ -103,24 +129,24 @@ namespace HVectMaybeNodeB
     public export
     data HVectMaybeNodeB : (cfg : NodeParams) -> (k : Nat) -> {0 ns : VectNat k} -> {0 ms : VectNat k} -> {0 cs : HVectFinInc k ns} -> {0 ts : HVectFinInc k ms} -> HVectMaybeNode cfg k ns ms cs ts -> Type where
         Nil : HVectMaybeNodeB cfg 0 []
-        (::) : {n : _} ->
-               {c : _} ->
+        (::) : {0 n : _} ->
+               {0 cur : _} ->
                {0 ns : VectNat k} ->
                {0 ms : VectNat k} ->
                {0 cs : HVectFinInc k ns} ->
                {0 ts : HVectFinInc k ms} ->
-               {0 node : MaybeNode cfg n m c t} ->
+               {0 node : MaybeNode cfg n m cur t} ->
                {0 nodes : HVectMaybeNode cfg k ns ms cs ts} ->
                MaybeNodeB node -> 
                HVectMaybeNodeB cfg k nodes -> 
                HVectMaybeNodeB cfg (S k) (node :: nodes)
-
+    
     public export
     traverse : Applicative f => 
                (
-                   {n : Nat} -> 
+                   {0 n : Nat} -> 
                    {0 m : Nat} -> 
-                   {cur : FinInc n} -> 
+                   {0 cur : FinInc n} -> 
                    {0 tot : FinInc m} -> 
                    (node : MaybeNode cfg n m cur tot) -> 
                    f (MaybeNodeB node)
@@ -132,14 +158,15 @@ namespace HVectMaybeNodeB
 
 -- TODO: Correct filenames to be 8.3 compliant
 public export
-data NodeB : {0 c : FinInc n} -> {0 t : FinInc m} -> Node cfg n m c t -> Type where
+data NodeB : {0 cur : FinInc n} -> {0 tot : FinInc m} -> Node cfg n m cur tot -> Type where
     FileB : (0 clustNZ : IsSucc clustSize) =>
-            VectBits8 FilenameLength -> 
-            VectBits8 (cv * clustSize) -> 
-            NodeB (File meta {k} {clustSize})
+            Filename ->
+            {0 k : FinInc (n * clustSize)} ->
+            VectBits8 k.val -> 
+            NodeB {n} {cfg = (MkNodeParams clustSize)} {cur = divCeilFlip clustSize k} {tot = divCeilFlip clustSize k} (File meta {k})
     DirB : (0 clustNZ : IsSucc clustSize) =>
            {ents : HVectMaybeNode (MkNodeParams clustSize) kv ns ms cs ts} ->
-           VectBits8 FilenameLength ->
+           Filename ->
            (nodes : HVectMaybeNodeB (MkNodeParams clustSize) kv ents) ->
            NodeB (Dir meta ents {n})
 
@@ -155,27 +182,41 @@ genVectBits8 : (n : Nat) -> Gen NonEmpty (VectBits8 n)
 genVectBits8 Z = pure []
 genVectBits8 (S k) = [| chooseAny :: genVectBits8 k |]
 
+genValidFilenameChar : Gen NonEmpty Bits8
+genValidFilenameChar = elements $ fromList $ map cast $ the (List Char) $ ['A'..'Z'] ++ ['0'..'9'] ++ unpack "!#$%&'()-@^_`{}~"
+
+genValidFilenameChars : (len : Nat) -> Gen NonEmpty (VectBits8 len)
+genValidFilenameChars Z = pure []
+genValidFilenameChars (S k) = [| genValidFilenameChar :: genValidFilenameChars k |]
+
+genPaddedFilenameVect : (len : Nat) -> (padlen : Nat) -> (0 prf : LTE len padlen) => Gen NonEmpty (VectBits8 padlen)
+genPaddedFilenameVect len padlen = rewrite (sym $ plusMinusLte len padlen prf) in rewrite (plusCommutative (minus padlen len) len) in flip (++) (fromVect $ replicate (minus padlen len) (cast ' ')) <$> genValidFilenameChars len
+
+public export
+genFilename : Gen NonEmpty Filename
+-- TODO: implement
+
 public export
 genMaybeNodeB : {cfg : NodeParams} -> 
-                {n : Nat} -> 
-                {cur : FinInc n} -> 
+                {0 n : Nat} -> 
+                {0 cur : FinInc n} -> 
                 (node : MaybeNode cfg n m cur tot) -> 
                 Gen NonEmpty (MaybeNodeB node)
 genMaybeNodeB Nothing = pure Nothing
-genMaybeNodeB (Just $ File meta) = do
+genMaybeNodeB (Just $ File meta {k}) = do
     name <- genVectBits8 FilenameLength
-    content <- genVectBits8 $ cur.val * cfg.clusterSize
+    content <- genVectBits8 k.val
     pure $ Just $ FileB name content
 genMaybeNodeB (Just $ Dir meta entries) = do
     name <- genVectBits8 FilenameLength
     ents <- assert_total $ traverse genMaybeNodeB entries
     pure $ Just $ DirB name ents
 
-public export
-genFilesystemB : {cfg : NodeParams} -> 
-                 (fs : Filesystem cfg sz) -> 
-                 Gen NonEmpty (FilesystemB fs)
-genFilesystemB (Root entries) = RootB <$> traverse genMaybeNodeB entries
+-- public export
+-- genFilesystemB : {cfg : NodeParams} -> 
+--                  (fs : Filesystem cfg sz) -> 
+--                  Gen NonEmpty (FilesystemB fs)
+-- genFilesystemB (Root entries) = RootB <$> traverse genMaybeNodeB entries
 
 
 %language ElabReflection
