@@ -3,7 +3,7 @@ module Filesystems.FAT32
 import public Data.Nat
 import public Data.Nat.Division
 import public Data.Monomorphic.Vect
-import public Data.FinInc
+-- import public Data.FinInc
 import public Data.Fuel
 import public Deriving.DepTyCheck.Gen
 import public Derive.Prelude
@@ -79,7 +79,7 @@ HVectMaybeNode' : NodeParams -> (k : Nat) -> Vect k NodeArgs -> Type
 HVectMaybeNode' cfg k nargs = All (\(MkNodeArgs n m cur tot) => Maybe (Node cfg n m cur tot)) nargs
 
 public export
-data Node : NodeParams -> (n : Nat) -> (m : Nat) -> FinInc n -> FinInc m -> Type where
+data Node : NodeParams -> (n : Nat) -> (m : Nat) -> (cur : FinInc n) -> (tot : FinInc m) -> Type where
     File : (0 clustNZ : IsSucc clustSize) =>
            {k : FinInc (n * clustSize)} ->
            (meta : Metadata) ->
@@ -111,6 +111,69 @@ data Filesystem : NodeParams -> Nat -> Type where
 
 public export
 genFilesystem : Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (maxClust ** Filesystem cfg maxClust)
+
+
+public export
+data NodeS : NodeParams -> (cur : Nat) -> (tot : Nat) -> Type
+
+namespace MaybeNodeS
+    public export
+    data MaybeNodeS : NodeParams -> (cur : Nat) -> (tot : Nat) -> Type where
+        Nothing : MaybeNodeS cfg cur tot
+        Just : NodeS cfg tot cur -> MaybeNodeS cfg tot cur
+
+public export
+record NodeSArgs where
+    constructor MkNodeSArgs
+    curS : Nat
+    totS : Nat
+
+namespace VectNodeSArgs
+    public export
+    data VectNodeSArgs : Nat -> Type where
+        Nil : VectNodeSArgs 0
+        (::) : NodeSArgs -> VectNodeSArgs k -> VectNodeSArgs (S k)
+   
+    public export
+    totsum : VectNodeSArgs k -> Nat
+    totsum [] = 0
+    totsum ((MkNodeSArgs cur tot) :: xs) = tot + totsum xs
+
+namespace HVectMaybeNodeS
+    public export
+    data HVectMaybeNodeS : NodeParams -> (k : Nat) -> VectNodeSArgs k -> Type where
+        Nil : HVectMaybeNodeS cfg 0 []
+        (::) : MaybeNodeS cfg cur tot -> 
+               HVectMaybeNodeS cfg k ars -> 
+               HVectMaybeNodeS cfg (S k) ((MkNodeSArgs cur tot) :: ars)
+
+%hide Data.Nat.divCeilNZ
+
+public export
+divCeilNZ : Nat -> (y: Nat) -> (0 _ : IsSucc y) => Nat
+divCeilNZ x y = case (modNatNZ x y %search) of
+  Z   => divNatNZ x y %search
+  S _ => S (divNatNZ x y %search)
+
+public export
+data NodeS : NodeParams -> (cur : Nat) -> (tot : Nat) -> Type where
+    FileS : (0 clustNZ : IsSucc clustSize) =>
+           {k : Nat} ->
+           (meta : Metadata) ->
+           NodeS (MkNodeParams clustSize) (divCeilNZ k clustSize) (divCeilNZ k clustSize)
+    DirS : (0 clustNZ : IsSucc clustSize) =>
+           (meta : Metadata) ->
+           (entries : HVectMaybeNodeS (MkNodeParams clustSize) k ars) ->
+           NodeS (MkNodeParams clustSize) (divCeilNZ (DirentSize * (2 + k)) clustSize) (divCeilNZ (DirentSize * (2 + k)) clustSize + totsum ars)
+
+public export
+data FilesystemS : NodeParams -> Nat -> Type where
+    RootS : (0 clustNZ : IsSucc clustSize) =>
+            (entries : HVectMaybeNodeS (MkNodeParams clustSize) k ars) ->
+            FilesystemS (MkNodeParams clustSize) (divCeilNZ (DirentSize * k) clustSize + totsum ars)
+
+public export
+genFilesystemS : Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (numClust ** FilesystemS cfg numClust)
 
 public export
 Filename : Type
@@ -223,8 +286,9 @@ genMaybeNodeB (Just $ Dir meta entries) = do
 %runElab deriveIndexed "IsSucc" [Show]
 %runElab derive "NodeParams" [Show]
 %runElab derive "Metadata" [Show]
-%runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HVectMaybeNode"]
-%runElab deriveIndexed "Filesystem" [Show]
+%runElab derive "NodeSArgs" [Show]
+%runElab deriveParam $ map (\n => PI n allIndices [Show]) ["NodeS", "MaybeNodeS", "HVectMaybeNodeS"]
+%runElab deriveIndexed "FilesystemS" [Show]
 
 {-
 Boot sector generation strategy:
