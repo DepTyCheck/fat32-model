@@ -17,6 +17,8 @@ depends = deptycheck
         , contrib-nat-division
         , elab-util
         , random-pure
+        , getopts
+        , barbies
 
 -- modules to install
 modules = Filesystems.FAT32
