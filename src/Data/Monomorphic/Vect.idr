@@ -1,7 +1,6 @@
 module Data.Monomorphic.Vect
 
 import public Data.Nat
-import public Data.FinInc
 import Derive.Prelude
 
 %default total
@@ -33,18 +32,6 @@ namespace VectBits8
     [] ++ ys = ys
     (x :: xs) ++ ys = x :: (xs ++ ys)
 
-namespace HVectFinInc
-    public export
-    data HVectFinInc : (k : Nat) -> VectNat k -> Type where
-        Nil : HVectFinInc 0 []
-        (::) : FinInc n -> HVectFinInc k ns -> HVectFinInc (S k) (n :: ns)
-    
-    public export
-    sum : {ns : VectNat k} -> HVectFinInc k ns -> FinInc (sum ns)
-    sum [] = MkFinInc 0 LTEZero
-    sum (x :: xs) = x + sum xs
-
 %language ElabReflection
 %runElab deriveIndexed "VectNat" [Show]
 %runElab deriveIndexed "VectBits8" [Show]
-%runElab deriveIndexed "HVectFinInc" [Show]

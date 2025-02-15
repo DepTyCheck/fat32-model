@@ -24,7 +24,6 @@ depends = deptycheck
 modules = Filesystems.FAT32
         , Filesystems.FAT32.Derived
         , Data.Monomorphic.Vect
-        , Data.FinInc
 
 -- main file (i.e. file to load at REPL)
 main = Main

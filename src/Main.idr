@@ -2,7 +2,6 @@ module Main
 
 import Data.Nat
 import Data.Monomorphic.Vect
-import Data.FinInc
 import Filesystems.FAT32.Derived
 import System.Random.Pure.StdGen
 import System
@@ -70,11 +69,6 @@ optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeParams "<size>") "cl
        , MkOpt ['q'] ["quiet", "no-print"] (NoArg $ {printGen := Just False} emptyCfg) "don't print the generated value"
        , MkOpt ['h'] ["help"] (NoArg $ {help := Just True} emptyCfg) "print usage information"
        ]
-
-aa : HVectMaybeNode' Cfg 2 [(MkNodeArgs 1 1 (MkFinInc 1 %search) (MkFinInc 1 %search)), (MkNodeArgs 1 1 (MkFinInc 1 %search) (MkFinInc 1 %search))]
-aa = ?aaa
-
-bb : HVectMaybeNode'' Cfg 2 [(MkNodeArgs 1 1 (MkFinInc 1 %search) (MkFinInc 1 %search)), (MkNodeArgs 1 1 (MkFinInc 1 %search) (MkFinInc 1 %search))]
 
 main : IO ()
 main = do
