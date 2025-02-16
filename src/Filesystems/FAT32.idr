@@ -33,21 +33,23 @@ record Metadata where
     system : Bool
     archive : Bool
 
-
 public export
 data Node : NodeParams -> (cur : Nat) -> (tot : Nat) -> Type
 
-namespace MaybeNode
-    public export
-    data MaybeNode : NodeParams -> (cur : Nat) -> (tot : Nat) -> Type where
-        Nothing : MaybeNode cfg cur tot
-        Just : Node cfg tot cur -> MaybeNode cfg tot cur
+public export
+data Node' : NodeParams -> (cur : Nat) -> (tot : Nat) -> Type
 
 public export
 record NodeArgs where
     constructor MkNodeArgs
     curS : Nat
     totS : Nat
+
+namespace MaybeNode
+    public export
+    data MaybeNode : NodeParams -> (cur : Nat) -> (tot : Nat) -> Type where
+        Nothing : MaybeNode cfg cur tot
+        Just : Node cfg tot cur -> MaybeNode cfg tot cur
 
 namespace VectNodeArgs
     public export
@@ -67,6 +69,16 @@ namespace HVectMaybeNode
         (::) : MaybeNode cfg cur tot -> 
                HVectMaybeNode cfg k ars -> 
                HVectMaybeNode cfg (S k) ((MkNodeArgs cur tot) :: ars)
+
+
+public export
+HVectMaybeNode' : NodeParams -> (k : Nat) -> Vect k NodeArgs -> Type
+
+public export
+totsum : Vect k NodeArgs -> Nat
+totsum [] = 0
+totsum ((MkNodeArgs cur tot) :: xs) = tot + totsum xs
+
 
 %hide Data.Nat.divCeilNZ
 
@@ -88,13 +100,67 @@ data Node : NodeParams -> (cur : Nat) -> (tot : Nat) -> Type where
            Node (MkNodeParams clustSize) (divCeilNZ (DirentSize * (2 + k)) clustSize) (divCeilNZ (DirentSize * (2 + k)) clustSize + totsum ars)
 
 public export
+data Node' : NodeParams -> (cur : Nat) -> (tot : Nat) -> Type where
+    File' : (0 clustNZ : IsSucc clustSize) =>
+           (meta : Metadata) ->
+           {k : Nat} ->
+           Node' (MkNodeParams clustSize) (divCeilNZ k clustSize) (divCeilNZ k clustSize)
+    Dir' : (0 clustNZ : IsSucc clustSize) =>
+           (meta : Metadata) ->
+           (entries : HVectMaybeNode' (MkNodeParams clustSize) k ars) ->
+           Node' (MkNodeParams clustSize) (divCeilNZ (DirentSize * (2 + k)) clustSize) (divCeilNZ (DirentSize * (2 + k)) clustSize + totsum ars)
+
+-- TODO: figure out wtf is happening if allf is moved before Node' definition
+public export
+allf : NodeParams -> NodeArgs -> Type
+allf cfg (MkNodeArgs cur tot) = Maybe $ Node' cfg cur tot
+
+HVectMaybeNode' cfg k ars = All {n=k} (allf cfg) ars
+
+public export
 data Filesystem : NodeParams -> Nat -> Type where
     Root : (0 clustNZ : IsSucc clustSize) =>
             (entries : HVectMaybeNode (MkNodeParams clustSize) k ars) ->
             Filesystem (MkNodeParams clustSize) (divCeilNZ (DirentSize * k) clustSize + totsum ars)
 
 public export
+data Filesystem' : NodeParams -> Nat -> Type where
+    Root' : (0 clustNZ : IsSucc clustSize) =>
+            (entries : HVectMaybeNode' (MkNodeParams clustSize) k ars) ->
+            Filesystem' (MkNodeParams clustSize) (divCeilNZ (DirentSize * k) clustSize + totsum ars)
+
+public export
 genFilesystem : Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (numClust ** Filesystem cfg numClust)
+
+-- public export
+-- polyFilesystem : Filesystem cfg k -> Filesystem' cfg k
+-- polyFilesystem x = believe_me x
+
+public export
+polyVectNodeArgs : VectNodeArgs k -> Vect k NodeArgs 
+polyVectNodeArgs [] = []
+polyVectNodeArgs (x :: xs) = x :: polyVectNodeArgs xs
+
+public export
+polyNode : Node cfg cur tot -> Node' cfg cur tot
+
+public export
+polyHVectMaybeNode : HVectMaybeNode cfg k ars -> HVectMaybeNode' cfg k (polyVectNodeArgs ars)
+polyHVectMaybeNode [] = []
+polyHVectMaybeNode ((::) Nothing xs) = Nothing :: (polyHVectMaybeNode xs)
+polyHVectMaybeNode ((::) (Just x) xs) = (Just $ polyNode x) :: (polyHVectMaybeNode xs)
+
+public export
+totsum_p : (ars : VectNodeArgs k) -> totsum ars = totsum (polyVectNodeArgs ars)
+totsum_p [] = Refl
+totsum_p ((MkNodeArgs curS totS) :: xs) = cong (plus totS) (totsum_p xs)
+
+polyNode (File meta) = File' meta
+polyNode (Dir meta entries {ars}) = rewrite totsum_p ars in (Dir' meta (polyHVectMaybeNode entries) {ars = polyVectNodeArgs ars})
+
+public export
+polyFilesystem : Filesystem cfg tot -> Filesystem' cfg tot
+polyFilesystem (Root entries {ars}) = rewrite totsum_p ars in (Root' (polyHVectMaybeNode entries) {ars = polyVectNodeArgs ars})
 
 public export
 Filename : Type

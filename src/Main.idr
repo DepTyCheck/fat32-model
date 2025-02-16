@@ -70,6 +70,22 @@ optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeParams "<size>") "cl
        , MkOpt ['h'] ["help"] (NoArg $ {help := Just True} emptyCfg) "print usage information"
        ]
 
+data PrimBool : Type where [external]
+
+%foreign "scheme:(lambda (b) (if b 1 0))"
+toBool : PrimBool -> Bool
+
+data Any : Type where [external]
+
+Cast x Any where
+  cast = believe_me
+
+%foreign "scheme:equal?"
+prim__isEqual : Any -> Any -> PrimBool
+
+isEqual : a -> b -> Bool
+isEqual a b = toBool $ prim__isEqual (cast a) (cast b)
+
 main : IO ()
 main = do
     let usage : Lazy String := usageInfo "Usage:" optDescs
@@ -82,8 +98,12 @@ main = do
     when cfg.help $ do
         putStrLn usage
         exitSuccess
-    let val := runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} (genFilesystem cfg.fuel cfg.params)
+    let val : Maybe (k ** Filesystem cfg.params k) := runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} (genFilesystem cfg.fuel cfg.params)
+    let val1 : Maybe (k ** Filesystem' cfg.params k) := do
+        g <- val
+        pure (fst g ** polyFilesystem $ snd $ g)
     when cfg.printGen $ printLn val
+    printLn $ isEqual val val1
     
 
 -- %logging "deptycheck.derive" 5
