@@ -17,7 +17,7 @@ import Control.Barbie
 
 record Config (m : Type -> Type) where
     constructor MkConfig
-    params     : m NodeParams
+    params   : m NodeCfg
     fuel     : m Fuel
     seed     : m Bits64
     printGen : m Bool
@@ -27,7 +27,7 @@ record Config (m : Type -> Type) where
 
 emptyCfg : Config Maybe
 emptyCfg = MkConfig
-    { params     = Nothing
+    { params   = Nothing
     , fuel     = Nothing
     , seed     = Nothing
     , printGen = Nothing
@@ -39,7 +39,7 @@ Cfg = Config Prelude.id
 
 defaultCfg : Cfg
 defaultCfg = MkConfig
-    { params     = MkNodeParams 32
+    { params   = MkNodeCfg 32
     , fuel     = limit 10
     , seed     = 1450262 
     , printGen = True
@@ -55,36 +55,21 @@ parseFuel s = pure $ {fuel := Just $ limit !(parseNat s)} emptyCfg
 parseSeed : String -> Either String $ Config Maybe
 parseSeed s = pure $ {seed := Just $ cast !(parseNat s)} emptyCfg
 
-parseNodeParams : String -> Either String $ Config Maybe
-parseNodeParams str with (parsePositive {a = Nat} str)
+parseNodeCfg : String -> Either String $ Config Maybe
+parseNodeCfg str with (parsePositive {a = Nat} str)
     _ | (Just x) with (isItSucc x)
-      _ | (Yes prf) = Right $ {params := (Just $ MkNodeParams x)} emptyCfg
+      _ | (Yes prf) = Right $ {params := (Just $ MkNodeCfg x)} emptyCfg
       _ | (No contra) = Left "0 is not a positive natural number"
     _ | Nothing = Left "not a natural number"
 
 optDescs : List $ OptDescr $ Config Maybe
-optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeParams "<size>") "cluster size in bytes"
+optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeCfg "<size>") "cluster size in bytes"
        , MkOpt ['f'] ["fuel"] (ReqArg' parseFuel "<fuel>") "fuel for the generator"
        , MkOpt ['s'] ["seed"] (ReqArg' parseSeed "<seed>") "seed"
        , MkOpt ['q'] ["quiet", "no-print"] (NoArg $ {printGen := Just False} emptyCfg) "don't print the generated value"
        , MkOpt ['h'] ["help"] (NoArg $ {help := Just True} emptyCfg) "print usage information"
        ]
 
-data PrimBool : Type where [external]
-
-%foreign "scheme:(lambda (b) (if b 1 0))"
-toBool : PrimBool -> Bool
-
-data Any : Type where [external]
-
-Cast x Any where
-  cast = believe_me
-
-%foreign "scheme:equal?"
-prim__isEqual : Any -> Any -> PrimBool
-
-isEqual : a -> b -> Bool
-isEqual a b = toBool $ prim__isEqual (cast a) (cast b)
 
 main : IO ()
 main = do
@@ -103,9 +88,3 @@ main = do
         g <- val
         pure (fst g ** polyFilesystem $ snd $ g)
     when cfg.printGen $ printLn val
-    printLn $ isEqual val val1
-    
-
--- %logging "deptycheck.derive" 5
--- %language ElabReflection
--- %runElab deriveGenPrinter (Fuel -> (cfg : NodeParams) -> Gen MaybeEmpty (maxClust ** Filesystem cfg maxClust))
