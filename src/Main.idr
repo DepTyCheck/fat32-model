@@ -12,7 +12,6 @@ import Derive.Barbie
 import Control.Barbie
 
 %default total
-%cg chez lazy=weakMemo
 %language ElabReflection
 
 
