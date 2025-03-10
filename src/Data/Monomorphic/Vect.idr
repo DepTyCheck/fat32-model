@@ -16,22 +16,22 @@ import Derive.Prelude
 --     sum [] = 0
 --     sum (x :: xs) = x + sum xs
 
--- namespace VectBits8
---     public export
---     data VectBits8 : Nat -> Type where
---         Nil : VectBits8 0
---         (::) : Bits8 -> VectBits8 n -> VectBits8 (S n)
---
---     public export
---     fromVect : Vect n Bits8 -> VectBits8 n
---     fromVect [] = []
---     fromVect (x :: xs) = x :: fromVect xs
---
---     public export
---     (++) : VectBits8 n -> VectBits8 m -> VectBits8 (n + m)
---     [] ++ ys = ys
---     (x :: xs) ++ ys = x :: (xs ++ ys)
+namespace VectBits8
+    public export
+    data VectBits8 : Nat -> Type where
+        Nil : VectBits8 0
+        (::) : Bits8 -> VectBits8 n -> VectBits8 (S n)
+
+    public export
+    fromVect : Vect n Bits8 -> VectBits8 n
+    fromVect [] = []
+    fromVect (x :: xs) = x :: fromVect xs
+
+    public export
+    (++) : VectBits8 n -> VectBits8 m -> VectBits8 (n + m)
+    [] ++ ys = ys
+    (x :: xs) ++ ys = x :: (xs ++ ys)
 
 %language ElabReflection
 -- %runElab deriveIndexed "VectNat" [Show]
--- %runElab deriveIndexed "VectBits8" [Show]
+%runElab deriveIndexed "VectBits8" [Show]
