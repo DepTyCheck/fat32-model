@@ -83,8 +83,5 @@ main = do
     when cfg.help $ do
         putStrLn usage
         exitSuccess
-    let val : Maybe (k ** Filesystem cfg.params k) := runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} (genFilesystem cfg.fuel cfg.params)
-    let val1 : Maybe (k ** Filesystem' cfg.params k) := do
-        g <- val
-        pure (fst g ** polyFilesystem $ snd $ g)
+    let val : Maybe (cur ** k ** Filesystem cfg.params k False) := runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} (genFilesystem cfg.fuel cfg.params)
     when cfg.printGen $ printLn val

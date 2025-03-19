@@ -1,4 +1,4 @@
-module Filesystems.FAT32.Derived
+module Filesystems.FAT32.Derived.NameTree
 
 import public Filesystems.FAT32
 import public Deriving.DepTyCheck.Gen
@@ -7,4 +7,5 @@ import public Deriving.DepTyCheck.Gen
 
 %logging "deptycheck.derive" 5
 
-Filesystems.FAT32.genFilesystem' = deriveGen
+Filesystems.FAT32.genNameTree = deriveGen
+
