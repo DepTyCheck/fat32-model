@@ -123,7 +123,7 @@ public export %hint
 genBits8 : Gen MaybeEmpty Bits8
 genBits8 = elements' $ the (List Bits8) [0..255]
 
-public export
+public export %hint
 genNode : Fuel -> (Fuel -> Gen MaybeEmpty Bits8) => (cfg : NodeCfg) -> (withBlob : Bool) -> (fs : Bool) -> Gen MaybeEmpty (ar ** Node cfg ar withBlob fs)
 
 public export
@@ -224,7 +224,7 @@ namespace NameTree
             NameIsNew (nodes :< node) (NewName @{ff} f @{sub}) x
 
 public export
-genNameTree : Fuel -> (fs : Bool) -> (wb : Bool) -> (ar : NodeArgs) -> (cfg : NodeCfg) -> (node : Node cfg ar wb fs) -> Gen MaybeEmpty (NameTree node)
+genNameTree : Fuel -> (Fuel -> (cfg : NodeCfg) -> (wb : Bool) -> (fs : Bool) -> Gen MaybeEmpty (ar ** Node cfg ar wb fs)) => (Fuel -> Gen MaybeEmpty Bits8) => (fs : Bool) -> (wb : Bool) -> (cfg : NodeCfg) -> Gen MaybeEmpty (ar ** node ** NameTree node {cfg} {ar} {wb} {fs})
 
 -- public export
 -- genMaybeNodeB : {cfg : NodeCfg} -> 
