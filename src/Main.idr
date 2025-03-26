@@ -2,7 +2,7 @@ module Main
 
 import Data.Nat
 import Data.Monomorphic.Vect
-import Filesystems.FAT32.Derived
+import Filesystems.FAT32.Derived.Node
 import System.Random.Pure.StdGen
 import System
 import System.GetOpts
@@ -83,5 +83,5 @@ main = do
     when cfg.help $ do
         putStrLn usage
         exitSuccess
-    let val : Maybe (cur ** k ** Filesystem cfg.params k False) := runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} (genFilesystem cfg.fuel cfg.params)
+    let val : Maybe (k ** Filesystem cfg.params k) := runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} (genFilesystem cfg.fuel cfg.params)
     when cfg.printGen $ printLn val

@@ -19,6 +19,8 @@ depends = deptycheck
         , random-pure
         , getopts
         , barbies
+        , array
+        , bytestring
 
 -- modules to install
 modules = Filesystems.FAT32

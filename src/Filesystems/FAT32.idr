@@ -1,16 +1,20 @@
 module Filesystems.FAT32
 
 import public Data.Nat
+import public Data.Nat.Order
+import public Data.Nat.Order.Properties
 import public Data.Nat.Division
 import public Data.Monomorphic.Vect
 import public Data.Fuel
 import public Deriving.DepTyCheck.Gen
 import public Derive.Prelude
 import public Data.DPair
+import public Data.ByteVect
 
 %default total
+%language ElabReflection
 
-
+%hide Data.Array.Index.lsl
 %hide Data.Nat.divCeilNZ
 
 public export
@@ -26,12 +30,16 @@ namespace Constants
     DirentSize = 32
 
     public export
-    FilenameLength : Nat
-    FilenameLength = 11
+    FilenameLengthName : Nat
+    FilenameLengthName = 8
 
     public export
-    FilenameLengthExtless : Nat
-    FilenameLengthExtless = 8
+    FilenameLengthExt : Nat
+    FilenameLengthExt = 3
+
+    public export
+    FilenameLength : Nat
+    FilenameLength = FilenameLengthName + FilenameLengthExt
 
 public export
 data NodeCfg : Type where
@@ -69,7 +77,7 @@ namespace SnovVectNodeArgs
     data SnocVectNodeArgs : Nat -> Type where
         Lin : SnocVectNodeArgs 0
         (:<) : SnocVectNodeArgs k -> NodeArgs -> SnocVectNodeArgs (S k)
-   
+
     public export
     totsum : SnocVectNodeArgs k -> Nat
     totsum [<] = 0
@@ -80,21 +88,36 @@ namespace HSnocVectMaybeNode
     data HSnocVectMaybeNode : NodeCfg -> (k : Nat) -> SnocVectNodeArgs k -> Bool -> Bool -> Type where
         Lin : HSnocVectMaybeNode cfg 0 [<] wb fs
         (:<) : HSnocVectMaybeNode cfg k ars wb fs ->
-               MaybeNode cfg ar wb fs -> 
+               MaybeNode cfg ar wb fs ->
                HSnocVectMaybeNode cfg (S k) (ars :< ar) wb fs
+
     public export
     data IndexIn : HSnocVectMaybeNode cfg k ars wb fs -> Type where
         Here : IndexIn (xs :< x)
         There : IndexIn xs -> IndexIn (xs :< x)
+
+    public export
+    traverse' : Applicative f =>
+                (
+                    {0 ar : NodeArgs} ->
+                    MaybeNode cfg ar wb1 fs1 ->
+                    f (MaybeNode cfg ar wb2 fs2)
+                ) ->
+                HSnocVectMaybeNode cfg k ars wb1 fs1 ->
+                f (HSnocVectMaybeNode cfg k ars wb2 fs2)
+    traverse' g [<] = pure [<]
+    traverse' g (xs :< x) = [| traverse' g xs :< g x |]
 
 namespace Node
     public export
     data Node : NodeCfg -> NodeArgs -> Bool -> Bool -> Type where
         File : (0 clustNZ : IsSucc clustSize) =>
                (meta : Metadata) ->
+               {k : Nat} ->
                Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize)) False False
         FileB : (0 clustNZ : IsSucc clustSize) =>
                 (meta : Metadata) ->
+                {k : Nat} ->
                 VectBits8 k ->
                 Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize)) True False
         Dir : (0 clustNZ : IsSucc clustSize) =>
@@ -112,86 +135,69 @@ namespace MaybeNode
         There : IndexIn {cfg = MkNodeCfg clustSize @{clustNZ}} xs -> IndexIn $ Just $ Dir @{clustNZ} meta xs
 
 public export
-Filesystem : NodeCfg -> {cur : Nat} -> (tot : Nat) -> Bool -> Type
-Filesystem cfg tot wb = Node cfg (MkNodeArgs cur tot) wb True
+Filesystem : NodeCfg -> NodeArgs -> Type
+Filesystem cfg ar = Node cfg ar False True
 
 public export
-FilesystemB : NodeCfg -> {cur : Nat} -> (tot : Nat) -> Type
-FilesystemB cfg tot = Node cfg (MkNodeArgs cur tot) True True
+FilesystemB : NodeCfg -> NodeArgs -> Type
+FilesystemB cfg ar = Node cfg ar True True
 
-public export %hint
-genBits8 : Gen MaybeEmpty Bits8
-genBits8 = elements' $ the (List Bits8) [0..255]
-
-public export %hint
+public export
 genNode : Fuel -> (Fuel -> Gen MaybeEmpty Bits8) => (cfg : NodeCfg) -> (withBlob : Bool) -> (fs : Bool) -> Gen MaybeEmpty (ar ** Node cfg ar withBlob fs)
 
 public export
-genFilesystem : Fuel -> (cfg : NodeCfg) -> Gen MaybeEmpty (cur ** tot ** Filesystem cfg {cur} tot False)
-genFilesystem fuel cfg = do
-    ((MkNodeArgs cur tot) ** res) <- genNode fuel cfg False True
-    pure (cur ** tot ** res)
+genFilesystem : Fuel -> (cfg : NodeCfg) -> Gen MaybeEmpty (ar ** Filesystem cfg ar)
+genFilesystem fuel cfg = genNode fuel cfg False True
+
+fillBlobs' : MaybeNode cfg ar False False -> Gen MaybeEmpty $ MaybeNode cfg ar True False
+fillBlobs' Nothing = pure Nothing
+fillBlobs' (Just $ Dir meta entries) = Just <$> Dir meta <$> assert_total (traverse' fillBlobs' entries)
+fillBlobs' (Just $ File meta {k}) = Just <$> FileB meta <$> genVectBits8 k
+
+fillBlobs : Node cfg ar False True -> Gen MaybeEmpty $ Node cfg ar True True
+fillBlobs (Root entries) = Root <$> (traverse' fillBlobs' entries)
 
 public export
-Filename : Type
-Filename = VectBits8 FilenameLength
-
-
--- TODO: Correct filenames to be 8.3 compliant
--- public export
--- data NodeB : Maybe (Node' cfg ar) -> Type where
---     NothingB : NodeB Nothing
---     FileB : (0 clustNZ : IsSucc clustSize) =>
---             Filename ->
---             Vect k Bits8 -> 
---             NodeB {cfg = (MkNodeCfg clustSize)} {ar = MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize)} (Just $ File' meta {k})
---     DirB : (0 clustNZ : IsSucc clustSize) =>
---            {ents : HVectMaybeNode' (MkNodeCfg clustSize) k ars} ->
---            Filename ->
---            -- assert_total is correct because All2 is a Functor
---            (nodes : All2 (assert_total NodeB) ents) ->
---            NodeB (Just $ Dir' meta ents {clustSize})
---
--- public export
--- data FilesystemB : Filesystem' cfg sz -> Type where
---     RootB : (0 clustNZ : IsSucc clustSize) =>
---             {0 ents : HVectMaybeNode' (MkNodeCfg clustSize) k ars} ->
---             (nodes : All2 NodeB ents) ->
---             FilesystemB (Root' ents)
+genFilesystemB : Fuel -> (cfg : NodeCfg) -> Gen MaybeEmpty (ar ** FilesystemB cfg ar)
+genFilesystemB fuel cfg = do
+    (ar ** fsr) <- genFilesystem fuel cfg
+    fsb <- fillBlobs fsr
+    pure (ar ** fsb)
 
 public export
-genVectBits8 : (n : Nat) -> Gen NonEmpty (VectBits8 n)
-genVectBits8 Z = pure []
-genVectBits8 (S k) = [| chooseAny :: genVectBits8 k |]
+data Filename : Type where
+    MkFilename : VectBits8 FilenameLength -> Filename
+%runElab derive "Filename" [Show, Eq]
 
-genValidFilenameChar : Gen NonEmpty Bits8
-genValidFilenameChar = elements $ fromList $ map cast $ the (List Char) $ ['A'..'Z'] ++ ['0'..'9'] ++ unpack "!#$%&'()-@^_`{}~"
+genValidFilenameChar : Gen MaybeEmpty Bits8
+genValidFilenameChar = elements' $ map cast $ the (List Char) $ ['A'..'Z'] ++ ['0'..'9'] ++ unpack "!#$%&'()-@^_`{}~"
 
-genValidFilenameChars : (len : Nat) -> Gen NonEmpty (VectBits8 len)
+genValidFilenameChars : (len : Nat) -> Gen MaybeEmpty (VectBits8 len)
 genValidFilenameChars Z = pure []
 genValidFilenameChars (S k) = [| genValidFilenameChar :: genValidFilenameChars k |]
 
-genPaddedFilenameVect : (len : Nat) -> (padlen : Nat) -> (0 prf : LTE len padlen) => Gen NonEmpty (VectBits8 padlen)
-genPaddedFilenameVect len padlen = rewrite (sym $ plusMinusLte len padlen prf) in rewrite (plusCommutative (minus padlen len) len) in flip (++) (fromVect $ replicate (minus padlen len) (cast ' ')) <$> genValidFilenameChars len
+genPaddedFilenameVect : (padlen : Nat) -> (len : Nat) -> (0 prf : LTE len padlen) -> Gen MaybeEmpty (VectBits8 padlen)
+genPaddedFilenameVect padlen len prf = rewrite sym $ plusMinusLte len padlen prf in
+                                   rewrite plusCommutative (minus padlen len) len in
+                                   flip (++) (fromVect $ replicate (minus padlen len) $ cast ' ') <$> genValidFilenameChars len
+
+boundedRange' : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => (fuel : Nat) -> Subset (List Nat) (All $ flip LT b)
+boundedRange' a b 0 = Element [] []
+boundedRange' a b (S k) with (decomposeLte a b prf)
+  boundedRange' a b (S k) | (Right peq) = Element [] []
+  boundedRange' a b (S k) | (Left plt) with (boundedRange' (S a) b k)
+    boundedRange' a b (S k) | (Left plt) | Element fst snd = Element (a :: fst) (plt :: snd)
+
+boundedRange : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => Subset (List Nat) (All $ flip LTE b)
+boundedRange a b with (boundedRange' a (S b) (S $ minus b a) @{lteSuccRight prf})
+    boundedRange a b | Element fst snd = Element fst (mapProperty fromLteSucc snd)
+
+genPaddedName : (padlen : Nat) -> LTE 1 padlen => Gen MaybeEmpty (VectBits8 padlen)
+genPaddedName padlen = oneOf $ choiceMap (relax {ne=False} . alternativesOf . uncurry (genPaddedFilenameVect padlen)) (uncurry pushIn $ boundedRange 1 padlen)
 
 public export
-genFilename : Gen NonEmpty Filename
--- TODO: implement
-
-isJustSpaces : VectBits8 k -> Bool
-isJustSpaces [] = True
-isJustSpaces (x :: xs) = (cast x == ' ') && (isJustSpaces xs)
-
-isValidFilenamePart : VectBits8 k -> Bool
-isValidFilenamePart [] = True
-isValidFilenamePart (x :: xs) with (the Char $ cast x)
-  isValidFilenamePart (x :: xs) | ' ' = isJustSpaces xs
-  isValidFilenamePart (x :: xs) | c   = (('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || (elem c $ unpack "!#$%&'()-@^_`{}~")) && isValidFilenamePart xs
-
-public export
-isValidFilename : Filename -> Bool
-isValidFilename x with (splitAt FilenameLengthExtless x)
-  isValidFilename x | (MkVectBits8Pair nam ext) = isValidFilenamePart nam && isValidFilenamePart ext
+genFilename : Gen MaybeEmpty Filename
+genFilename = pure $ MkFilename $ !(genPaddedName FilenameLengthName) ++ !(genPaddedName FilenameLengthExt)
 
 namespace NameTree
     public export
@@ -224,30 +230,62 @@ namespace NameTree
             NameIsNew (nodes :< node) (NewName @{ff} f @{sub}) x
 
 public export
-genNameTree : Fuel -> (Fuel -> (cfg : NodeCfg) -> (wb : Bool) -> (fs : Bool) -> Gen MaybeEmpty (ar ** Node cfg ar wb fs)) => (Fuel -> Gen MaybeEmpty Bits8) => (fs : Bool) -> (wb : Bool) -> (cfg : NodeCfg) -> Gen MaybeEmpty (ar ** node ** NameTree node {cfg} {ar} {wb} {fs})
-
--- public export
--- genMaybeNodeB : {cfg : NodeCfg} -> 
---                 (node : MaybeNode cfg cur tot) -> 
---                 Gen NonEmpty (MaybeNodeB node)
--- genMaybeNodeB Nothing = pure Nothing
--- genMaybeNodeB (Just $ File meta {k}) = do
---     name <- genVectBits8 FilenameLength
---     content <- genVectBits8 k
---     pure $ Just $ FileB name content
--- genMaybeNodeB (Just $ Dir meta entries) = do
---     name <- genVectBits8 FilenameLength
---     ents <- assert_total $ traverse genMaybeNodeB entries
---     pure $ Just $ DirB name ents
---
--- public export
--- genFilesystemB : {cfg : NodeCfg} -> 
---                  (fs : Filesystem cfg sz) -> 
---                  Gen NonEmpty (FilesystemB fs)
--- genFilesystemB (Root entries) = RootB <$> traverse genMaybeNodeB entries
+genNameTree : Fuel ->
+              (
+                Fuel ->
+                (cfg : NodeCfg) ->
+                (wb : Bool) ->
+                (fs : Bool) ->
+                Gen MaybeEmpty (ar ** Node cfg ar wb fs)
+              ) =>
+              (Fuel -> Gen MaybeEmpty Bits8) =>
+              (Fuel -> Gen MaybeEmpty Filename) =>
+              (fs : Bool) ->
+              (wb : Bool) ->
+              (cfg : NodeCfg) ->
+              Gen MaybeEmpty (ar ** node ** NameTree node {cfg} {ar} {wb} {fs})
 
 
-%language ElabReflection
+record BootSector where
+    constructor MkBootSector
+    BS_jmpBoot     : ByteVect  3
+    BS_OEMName     : ByteVect  8
+    BPB_BytsPerSec : ByteVect  2
+    BPB_SecPerClus : ByteVect  1
+    BPB_RsvdSecCnt : ByteVect  2
+    BPB_NumFATs    : ByteVect  1
+    BPB_RootEntCnt : ByteVect  2
+    BPB_TotSec16   : ByteVect  2
+    BPB_Media      : ByteVect  1
+    BPB_FATSz16    : ByteVect  2
+    BPB_SecPerTrk  : ByteVect  2
+    BPB_NumHeads   : ByteVect  2
+    BPB_HiddSec    : ByteVect  4
+    BPB_TotSec32   : ByteVect  4
+    BPB_FATSz32    : ByteVect  4
+    BPB_ExtFlags   : ByteVect  2
+    BPB_FSVer      : ByteVect  2
+    BPB_RootClus   : ByteVect  4
+    BPB_FSInfo     : ByteVect  2
+    BPB_BkBootSec  : ByteVect  2
+    BPB_Reserved   : ByteVect 12
+    BS_DrvNum      : ByteVect  1
+    BS_Reserved1   : ByteVect  1
+    BS_BootSig     : ByteVect  1
+    BS_VolID       : ByteVect  4
+    BS_VolLab      : ByteVect 11
+    BS_FilSysType  : ByteVect  8
+
+record FSInfo where
+    constructor MkFSInfo
+    FSI_LeadSig   : ByteVect   4
+    FSI_Reserved1 : ByteVect 480
+    FSI_StrucSig  : ByteVect   4
+    FSI_Nxt_Free  : ByteVect   4
+    FSI_Reserved2 : ByteVect  12
+    FSI_TrailSig  : ByteVect   4
+
+
 %runElab deriveIndexed "IsSucc" [Show]
 %runElab derive "NodeCfg" [Show]
 %runElab derive "Metadata" [Show]

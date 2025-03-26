@@ -2,6 +2,7 @@ module Data.Monomorphic.Vect
 
 import public Data.Nat
 import Derive.Prelude
+import Deriving.DepTyCheck.Gen
 
 %default total
 
@@ -15,6 +16,10 @@ import Derive.Prelude
 --     sum : VectNat k -> Nat
 --     sum [] = 0
 --     sum (x :: xs) = x + sum xs
+
+public export %hint
+genBits8 : Gen MaybeEmpty Bits8
+genBits8 = elements' $ the (List Bits8) [0..255]
 
 namespace VectBits8
     public export
@@ -48,6 +53,11 @@ namespace VectBits8
     Eq (VectBits8 k) where
         (==) [] [] = True
         (==) (x :: xs) (y :: ys) = (x == y) && (xs == ys)
+    
+    public export
+    genVectBits8 : (n : Nat) -> Gen MaybeEmpty (VectBits8 n)
+    genVectBits8 0 = pure []
+    genVectBits8 (S k) = [| genBits8 :: genVectBits8 k |]
 
 %language ElabReflection
 -- %runElab deriveIndexed "VectNat" [Show]
