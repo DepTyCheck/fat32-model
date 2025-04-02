@@ -3,6 +3,7 @@ module Data.Monomorphic.Vect
 import public Data.Nat
 import Derive.Prelude
 import Deriving.DepTyCheck.Gen
+import public Data.ByteVect
 
 %default total
 
@@ -21,6 +22,10 @@ public export %hint
 genBits8 : Gen MaybeEmpty Bits8
 genBits8 = elements' $ the (List Bits8) [0..255]
 
+public export
+packVect : {n : Nat} -> Vect n Bits8 -> ByteVect n
+packVect xs = BV (buffer xs) 0 reflexive
+
 namespace VectBits8
     public export
     data VectBits8 : Nat -> Type where
@@ -37,6 +42,11 @@ namespace VectBits8
     fromVect : Vect n Bits8 -> VectBits8 n
     fromVect [] = []
     fromVect (x :: xs) = x :: fromVect xs
+    
+    public export
+    toVect : VectBits8 n -> Vect n Bits8
+    toVect [] = []
+    toVect (x :: xs) = x :: toVect xs
 
     public export
     (++) : VectBits8 n -> VectBits8 m -> VectBits8 (n + m)
@@ -58,6 +68,11 @@ namespace VectBits8
     genVectBits8 : (n : Nat) -> Gen MaybeEmpty (VectBits8 n)
     genVectBits8 0 = pure []
     genVectBits8 (S k) = [| genBits8 :: genVectBits8 k |]
+
+    public export
+    packVect : {n : Nat} -> VectBits8 n -> ByteVect n
+    packVect = packVect . toVect
+
 
 %language ElabReflection
 -- %runElab deriveIndexed "VectNat" [Show]

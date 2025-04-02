@@ -8,8 +8,12 @@ import public Data.Monomorphic.Vect
 import public Data.Fuel
 import public Deriving.DepTyCheck.Gen
 import public Derive.Prelude
+import Derive.Barbie
+import Control.Barbie
 import public Data.DPair
 import public Data.ByteVect
+import Data.Bits
+import Control.Monad.Trans
 
 %default total
 %language ElabReflection
@@ -245,46 +249,149 @@ genNameTree : Fuel ->
               (cfg : NodeCfg) ->
               Gen MaybeEmpty (ar ** node ** NameTree node {cfg} {ar} {wb} {fs})
 
+interface ByteRepr a n | n where
+  byteRepr : a -> ByteVect n
+
+ByteRepr Bits8 1 where
+  byteRepr x = singleton x
+
+ByteRepr Bits16 2 where
+  byteRepr n = pack $ cast <$> [ n .&. 0xff
+                               , n `shiftR` 8
+                               ]
+
+ByteRepr Bits32 4 where
+  byteRepr n = pack $ cast <$> [ n .&. 0xff
+                               , (n `shiftR` 8) .&. 0xff
+                               , (n `shiftR` 16) .&. 0xff
+                               , (n `shiftR` 24) .&. 0xff
+                               ]
+
+ByteRepr Bits64 8 where
+  byteRepr n = pack $ cast <$> [ n .&. 0xff
+                               , (n `shiftR` 8) .&. 0xff
+                               , (n `shiftR` 16) .&. 0xff
+                               , (n `shiftR` 24) .&. 0xff
+                               , (n `shiftR` 32) .&. 0xff
+                               , (n `shiftR` 40) .&. 0xff
+                               , (n `shiftR` 48) .&. 0xff
+                               , (n `shiftR` 56) .&. 0xff
+                               ]
 
 record BootSector where
     constructor MkBootSector
-    BS_jmpBoot     : ByteVect  3
-    BS_OEMName     : ByteVect  8
-    BPB_BytsPerSec : ByteVect  2
-    BPB_SecPerClus : ByteVect  1
-    BPB_RsvdSecCnt : ByteVect  2
-    BPB_NumFATs    : ByteVect  1
-    BPB_RootEntCnt : ByteVect  2
-    BPB_TotSec16   : ByteVect  2
-    BPB_Media      : ByteVect  1
-    BPB_FATSz16    : ByteVect  2
-    BPB_SecPerTrk  : ByteVect  2
-    BPB_NumHeads   : ByteVect  2
-    BPB_HiddSec    : ByteVect  4
-    BPB_TotSec32   : ByteVect  4
-    BPB_FATSz32    : ByteVect  4
-    BPB_ExtFlags   : ByteVect  2
-    BPB_FSVer      : ByteVect  2
-    BPB_RootClus   : ByteVect  4
-    BPB_FSInfo     : ByteVect  2
-    BPB_BkBootSec  : ByteVect  2
-    BPB_Reserved   : ByteVect 12
-    BS_DrvNum      : ByteVect  1
-    BS_Reserved1   : ByteVect  1
-    BS_BootSig     : ByteVect  1
-    BS_VolID       : ByteVect  4
-    BS_VolLab      : ByteVect 11
-    BS_FilSysType  : ByteVect  8
+    bs_jmpBoot     : ByteVect  3
+    bs_OEMName     : ByteVect  8
+    bpb_BytsPerSec : ByteVect  2
+    bpb_SecPerClus : ByteVect  1
+    bpb_RsvdSecCnt : ByteVect  2
+    bpb_NumFATs    : ByteVect  1
+    bpb_RootEntCnt : ByteVect  2
+    bpb_TotSec16   : ByteVect  2
+    bpb_Media      : ByteVect  1
+    bpb_FATSz16    : ByteVect  2
+    bpb_SecPerTrk  : ByteVect  2
+    bpb_NumHeads   : ByteVect  2
+    bpb_HiddSec    : ByteVect  4
+    bpb_TotSec32   : ByteVect  4
+    bpb_FATSz32    : ByteVect  4
+    bpb_ExtFlags   : ByteVect  2
+    bpb_FSVer      : ByteVect  2
+    bpb_RootClus   : ByteVect  4
+    bpb_FSInfo     : ByteVect  2
+    bpb_BkBootSec  : ByteVect  2
+    bpb_Reserved   : ByteVect 12
+    bs_DrvNum      : ByteVect  1
+    bs_Reserved1   : ByteVect  1
+    bs_BootSig     : ByteVect  1
+    bs_VolID       : ByteVect  4
+    bs_VolLab      : ByteVect 11
+    bs_FilSysType  : ByteVect  8
 
-record FSInfo where
+-- %runElab derive "BootSector" [Barbie]
+
+bootSectGen : (clustSize : Nat) -> (dataClust : Nat) -> (rootClust : Nat) -> Gen MaybeEmpty BootSector
+bootSectGen clustSize dataClust rootClust = do
+    bs_jmpBoot         <- oneOf $ alternativesOf (do pure $ pack [0xEB, !genBits8, 0x90])
+                            ++ alternativesOf (do pure $ pack [0xE9, !genBits8, !genBits8])
+    bs_OEMName         <- packVect <$> genVectBits8 _
+    -- TODO: generate powers of 2 from 512 to clustSize
+    let bytsPerSec : Nat
+        bytsPerSec = 512
+    let bpb_BytsPerSec  = byteRepr $ cast bytsPerSec
+    let secPerClus      = divNatNZ clustSize bytsPerSec %search
+    let bpb_SecPerClus  = byteRepr $ cast $ secPerClus
+    -- TODO: maybe add some sectors for fun here
+    let rsvdSecCnt       = 32
+    let bpb_RsvdSecCnt  = byteRepr $ cast rsvdSecCnt
+    -- TODO: generate from 1 to 8 FATs
+    let numFATs          = 2
+    let bpb_NumFATs     = byteRepr $ cast numFATs
+    let bpb_RootEntCnt  = byteRepr 0
+    let bpb_TotSec16    = byteRepr 0
+    bpb_Media          <- elements' $ byteRepr <$> 
+                          the (List _) [0xF0, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF]
+    let bpb_FATSz16     = byteRepr 0
+    bpb_SecPerTrk      <- packVect <$> genVectBits8 _
+    bpb_NumHeads       <- packVect <$> genVectBits8 _
+    let bpb_HiddSec     = byteRepr 0
+    let tFATSz32        = dataClust * 4 
+    let bpb_TotSec32    = byteRepr $ cast $ rsvdSecCnt + numFATs * tFATSz32 + dataClust * secPerClus
+    let bpb_FATSz32     = byteRepr $ cast tFATSz32
+    -- TODO: generate mirroring and stuff
+    let bpb_ExtFlags    = ?a15
+    let bpb_FSVer       = ?a16
+    let bpb_RootClus    = ?a17
+    let bpb_FSInfo      = ?a18
+    let bpb_BkBootSec   = ?a19
+    let bpb_Reserved    = ?a20
+    let bs_DrvNum       = ?a21
+    let bs_Reserved1    = ?a22
+    let bs_BootSig      = ?a23
+    let bs_VolID        = ?a24
+    let bs_VolLab       = ?a25
+    let bs_FilSysType   = ?a26
+    pure $ MkBootSector { bs_jmpBoot
+                        , bs_OEMName
+                        , bpb_BytsPerSec
+                        , bpb_SecPerClus
+                        , bpb_RsvdSecCnt
+                        , bpb_NumFATs
+                        , bpb_RootEntCnt
+                        , bpb_TotSec16
+                        , bpb_Media
+                        , bpb_FATSz16
+                        , bpb_SecPerTrk
+                        , bpb_NumHeads
+                        , bpb_HiddSec
+                        , bpb_TotSec32
+                        , bpb_FATSz32
+                        , bpb_ExtFlags
+                        , bpb_FSVer
+                        , bpb_RootClus
+                        , bpb_FSInfo
+                        , bpb_BkBootSec
+                        , bpb_Reserved
+                        , bs_DrvNum
+                        , bs_Reserved1
+                        , bs_BootSig
+                        , bs_VolID
+                        , bs_VolLab
+                        , bs_FilSysType
+                        }
+
+
+
+record FSInfo (f : Type -> Type) where
     constructor MkFSInfo
-    FSI_LeadSig   : ByteVect   4
-    FSI_Reserved1 : ByteVect 480
-    FSI_StrucSig  : ByteVect   4
-    FSI_Nxt_Free  : ByteVect   4
-    FSI_Reserved2 : ByteVect  12
-    FSI_TrailSig  : ByteVect   4
+    FSI_LeadSig   : f $ ByteVect   4
+    FSI_Reserved1 : f $ ByteVect 480
+    FSI_StrucSig  : f $ ByteVect   4
+    FSI_Nxt_Free  : f $ ByteVect   4
+    FSI_Reserved2 : f $ ByteVect  12
+    FSI_TrailSig  : f $ ByteVect   4
 
+%runElab derive "FSInfo" [Barbie]
 
 %runElab deriveIndexed "IsSucc" [Show]
 %runElab derive "NodeCfg" [Show]
