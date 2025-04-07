@@ -122,7 +122,7 @@ namespace Node
         FileB : (0 clustNZ : IsSucc clustSize) =>
                 (meta : Metadata) ->
                 {k : Nat} ->
-                VectBits8 k ->
+                SnocVectBits8 k ->
                 Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize)) True False
         Dir : (0 clustNZ : IsSucc clustSize) =>
               (meta : Metadata) ->
@@ -339,18 +339,20 @@ bootSectGen clustSize dataClust rootClust = do
     let bpb_TotSec32    = byteRepr $ cast $ rsvdSecCnt + numFATs * tFATSz32 + dataClust * secPerClus
     let bpb_FATSz32     = byteRepr $ cast tFATSz32
     -- TODO: generate mirroring and stuff
-    let bpb_ExtFlags    = ?a15
-    let bpb_FSVer       = ?a16
-    let bpb_RootClus    = ?a17
-    let bpb_FSInfo      = ?a18
-    let bpb_BkBootSec   = ?a19
-    let bpb_Reserved    = ?a20
-    let bs_DrvNum       = ?a21
-    let bs_Reserved1    = ?a22
-    let bs_BootSig      = ?a23
-    let bs_VolID        = ?a24
-    let bs_VolLab       = ?a25
-    let bs_FilSysType   = ?a26
+    activeFAT          <- elements' $ the (List Bits16) $ map cast $ [0 .. (minus numFATs 1)]
+    onlyOneFAT         <- elements' $ the (List Bits16) [0, 1]
+    let bpb_ExtFlags    = byteRepr $ activeFAT .|. (onlyOneFAT `shiftL` 7)
+    let bpb_FSVer       = byteRepr 0
+    let bpb_RootClus    = byteRepr $ cast rootClust
+    let bpb_FSInfo      = byteRepr 1
+    let bpb_BkBootSec   = byteRepr 6
+    let bpb_Reserved    = replicate _ 0
+    let bs_DrvNum       = byteRepr 0x80
+    let bs_Reserved1    = replicate _ 0
+    let bs_BootSig      = byteRepr 0x29
+    bs_VolID           <- packVect <$> genVectBits8 _
+    bs_VolLab          <- packVect <$> genVectBits8 _
+    let bs_FilSysType   = pack $ map cast ['F', 'A', 'T', '3', '2', ' ', ' ', ' ']
     pure $ MkBootSector { bs_jmpBoot
                         , bs_OEMName
                         , bpb_BytsPerSec
@@ -382,16 +384,33 @@ bootSectGen clustSize dataClust rootClust = do
 
 
 
-record FSInfo (f : Type -> Type) where
+record FSInfo where
     constructor MkFSInfo
-    FSI_LeadSig   : f $ ByteVect   4
-    FSI_Reserved1 : f $ ByteVect 480
-    FSI_StrucSig  : f $ ByteVect   4
-    FSI_Nxt_Free  : f $ ByteVect   4
-    FSI_Reserved2 : f $ ByteVect  12
-    FSI_TrailSig  : f $ ByteVect   4
+    fsi_LeadSig    : ByteVect   4
+    fsi_Reserved1  : ByteVect 480
+    fsi_StrucSig   : ByteVect   4
+    fsi_Free_Count : ByteVect   4
+    fsi_Nxt_Free   : ByteVect   4
+    fsi_Reserved2  : ByteVect  12
+    fsi_TrailSig   : ByteVect   4
 
-%runElab derive "FSInfo" [Barbie]
+fsInfoGen : (dataClust : Nat) -> Gen MaybeEmpty FSInfo
+fsInfoGen dataClust = do
+  let fsi_LeadSig   = byteRepr 0x41615252
+  let fsi_Reserved1 = replicate _ 0
+  let fsi_StrucSig  = byteRepr 0x61417272
+  fsi_Free_Count   <- elements' $ the (List _) $ map (byteRepr . cast) $ [0 .. dataClust]
+  fsi_Nxt_Free     <- elements' $ the (List _) $ map (byteRepr . cast) $ [0 .. (minus dataClust 1)]
+  let fsi_Reserved2 = replicate _ 0
+  let fsi_TrailSig  = byteRepr 0xAA550000
+  pure $ MkFSInfo { fsi_LeadSig
+                  , fsi_Reserved1
+                  , fsi_StrucSig
+                  , fsi_Free_Count
+                  , fsi_Nxt_Free
+                  , fsi_Reserved2
+                  , fsi_TrailSig
+                  }
 
 %runElab deriveIndexed "IsSucc" [Show]
 %runElab derive "NodeCfg" [Show]
@@ -400,6 +419,20 @@ record FSInfo (f : Type -> Type) where
 %runElab deriveIndexed "SnocVectNodeArgs" [Show]
 %runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HSnocVectMaybeNode"]
 -- %runElab deriveIndexed "Filesystem" [Show]
+
+padBlob : (clustSize : Nat) -> (0 clustNZ : IsSucc clustSize) -> {n : Nat} -> VectBits8 n -> VectBits8 (divCeilNZ n clustSize @{clustNZ} * clustSize)
+padBlob clustSize clustNZ xs with (DivisionTheorem n clustSize clustNZ clustNZ) | (modNatNZ n clustSize clustNZ)
+  _ | cc | 0  = rewrite sym cc in xs
+  _ | cc | S k = ?adfg_1
+  -- padBlob clustSize clustNZ xs | (Yes prf)   | 0     | divt' = ?xdfs
+  -- padBlob clustSize clustNZ xs | (Yes prf)   | (S k) | divt' = void $ SIsNotZ prf
+  -- padBlob clustSize clustNZ xs | (No contra) | 0     | divt' = void $ contra Refl
+  -- padBlob clustSize clustNZ xs | (No contra) | (S k) | divt' = ?psdd_rhsd_4
+
+serializeNode : Node (MkNodeCfg clustSize @{clustNZ}) (MkNodeArgs cur tot) True fs -> ByteVect (cur * clustSize)
+serializeNode (FileB meta x) = ?vectttt x
+serializeNode (Dir meta entries) = ?serializeNode_rhs_2
+serializeNode (Root entries) = ?serializeNode_rhs_3
 
 {-
 Boot sector generation strategy:

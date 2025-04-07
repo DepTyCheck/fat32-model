@@ -73,7 +73,32 @@ namespace VectBits8
     packVect : {n : Nat} -> VectBits8 n -> ByteVect n
     packVect = packVect . toVect
 
+namespace SnocVectBits8
+    public export
+    data SnocVectBits8 : Nat -> Type where
+        Lin : SnocVectBits8 0
+        (:<) : (SnocVectBits8 n) -> Bits8 -> SnocVectBits8 (S n)
+
+    public export
+    Eq (SnocVectBits8 k) where
+        (==) [<] [<]             = True
+        (==) (sx :< x) (sy :< y) = (x == y) && (sx == sy)
+
+    public export
+    (++) : SnocVectBits8 n -> SnocVectBits8 m -> SnocVectBits8 (n + m)
+    sx ++ [<] = rewrite plusZeroRightNeutral n in sx
+    sx ++ ((:<) sy y {n=m'}) =
+        rewrite sym $ plusSuccRightSucc n m' in
+            (sx ++ sy) :< y
+
+    public export
+    (<><) : SnocVectBits8 n -> VectBits8 m -> SnocVectBits8 (n + m)
+    sx <>< [] = rewrite plusZeroRightNeutral n in sx
+    sx <>< ((::) x xs {n=m'}) =
+        rewrite sym $ plusSuccRightSucc n m' in
+            sx :< x <>< xs
 
 %language ElabReflection
 -- %runElab deriveIndexed "VectNat" [Show]
 %runElab deriveIndexed "VectBits8" [Show]
+%runElab deriveIndexed "SnocVectBits8" [Show]
