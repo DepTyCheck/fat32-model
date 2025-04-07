@@ -54,6 +54,11 @@ namespace VectBits8
     (x :: xs) ++ ys = x :: (xs ++ ys)
 
     public export
+    replicate : (n : Nat) -> Bits8 -> VectBits8 n
+    replicate 0 m = []
+    replicate (S k) m = m :: replicate k m
+
+    public export
     splitAt : (n : Nat) -> (xs : VectBits8 (n + m)) -> VectBits8Pair n m
     splitAt 0 xs = MkVectBits8Pair [] xs
     splitAt (S k) (x :: xs) with (splitAt k xs)
@@ -97,6 +102,11 @@ namespace SnocVectBits8
     sx <>< ((::) x xs {n=m'}) =
         rewrite sym $ plusSuccRightSucc n m' in
             sx :< x <>< xs
+    
+    public export
+    genSnocVectBits8 : (n : Nat) -> Gen MaybeEmpty (SnocVectBits8 n)
+    genSnocVectBits8 0 = pure [<]
+    genSnocVectBits8 (S k) = [| genSnocVectBits8 k :< genBits8 |]
 
 %language ElabReflection
 -- %runElab deriveIndexed "VectNat" [Show]

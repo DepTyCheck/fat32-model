@@ -156,7 +156,7 @@ genFilesystem fuel cfg = genNode fuel cfg False True
 fillBlobs' : MaybeNode cfg ar False False -> Gen MaybeEmpty $ MaybeNode cfg ar True False
 fillBlobs' Nothing = pure Nothing
 fillBlobs' (Just $ Dir meta entries) = Just <$> Dir meta <$> assert_total (traverse' fillBlobs' entries)
-fillBlobs' (Just $ File meta {k}) = Just <$> FileB meta <$> genVectBits8 k
+fillBlobs' (Just $ File meta {k}) = Just <$> FileB meta <$> genSnocVectBits8 k
 
 fillBlobs : Node cfg ar False True -> Gen MaybeEmpty $ Node cfg ar True True
 fillBlobs (Root entries) = Root <$> (traverse' fillBlobs' entries)
@@ -420,14 +420,15 @@ fsInfoGen dataClust = do
 %runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HSnocVectMaybeNode"]
 -- %runElab deriveIndexed "Filesystem" [Show]
 
-padBlob : (clustSize : Nat) -> (0 clustNZ : IsSucc clustSize) -> {n : Nat} -> VectBits8 n -> VectBits8 (divCeilNZ n clustSize @{clustNZ} * clustSize)
-padBlob clustSize clustNZ xs with (DivisionTheorem n clustSize clustNZ clustNZ) | (modNatNZ n clustSize clustNZ)
-  _ | cc | 0  = rewrite sym cc in xs
-  _ | cc | S k = ?adfg_1
-  -- padBlob clustSize clustNZ xs | (Yes prf)   | 0     | divt' = ?xdfs
-  -- padBlob clustSize clustNZ xs | (Yes prf)   | (S k) | divt' = void $ SIsNotZ prf
-  -- padBlob clustSize clustNZ xs | (No contra) | 0     | divt' = void $ contra Refl
-  -- padBlob clustSize clustNZ xs | (No contra) | (S k) | divt' = ?psdd_rhsd_4
+padBlob : (clustSize : Nat) -> (0 clustNZ : IsSucc clustSize) -> {n : Nat} -> SnocVectBits8 n -> SnocVectBits8 (divCeilNZ n clustSize @{clustNZ} * clustSize)
+padBlob clustSize clustNZ sx with (DivisionTheorem n clustSize clustNZ clustNZ, boundModNatNZ n clustSize clustNZ) | (modNatNZ n clustSize clustNZ)
+  _ | (cc, blt) | 0  = rewrite sym cc in sx
+  _ | (cc, blt) | m@(S k) = do
+    rewrite sym $ cong (+ divNatNZ n clustSize clustNZ * clustSize) $ plusMinusLte m clustSize (lteSuccLeft blt)
+    rewrite sym $ plusAssociative (minus clustSize m) m (divNatNZ n clustSize clustNZ * clustSize)
+    rewrite sym cc
+    rewrite plusCommutative (minus clustSize m) n
+    sx <>< (replicate (minus clustSize m) 0)
 
 serializeNode : Node (MkNodeCfg clustSize @{clustNZ}) (MkNodeArgs cur tot) True fs -> ByteVect (cur * clustSize)
 serializeNode (FileB meta x) = ?vectttt x
