@@ -1,6 +1,8 @@
 module Data.UniqFinVect
 
 import Deriving.DepTyCheck.Gen
+import Data.Array.Core
+import Data.Array.Indexed
 
 public export
 data UniqFinVect : (k : Nat) -> (n : Nat) -> Type
@@ -18,3 +20,13 @@ data NotIn : Fin n -> UniqFinVect k n -> Type where
 
 public export
 genUniqFinVect : Fuel -> (k : Nat) -> (n : Nat) -> Gen MaybeEmpty $ UniqFinVect k n
+
+public export
+toVect : UniqFinVect k n -> Vect k (Fin n)
+toVect [] = []
+toVect (s::ss) = s :: toVect ss
+
+public export
+toArray : {k : Nat} -> UniqFinVect k n -> IArray k (Fin n)
+toArray = array . toVect
+

@@ -13,7 +13,8 @@ import Control.Barbie
 import public Data.DPair
 import public Data.ByteVect
 import Data.Bits
-import Control.Monad.Trans
+import Data.Array.Core
+import Data.Array.Indexed
 
 %default total
 %language ElabReflection
@@ -65,6 +66,7 @@ record NodeArgs where
     constructor MkNodeArgs
     curS : Nat
     totS : Nat
+    {auto 0 curTotLTE : LTE curS totS}
 
 namespace Node
     public export
@@ -124,13 +126,21 @@ namespace Node
                 {k : Nat} ->
                 SnocVectBits8 k ->
                 Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize)) True False
-        Dir : (0 clustNZ : IsSucc clustSize) =>
+        Dir : forall k, ars, clustSize.
+              (0 clustNZ : IsSucc clustSize) =>
               (meta : Metadata) ->
               (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb False) ->
-              Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ (DirentSize * (2 + k)) clustSize) (divCeilNZ (DirentSize * (2 + k)) clustSize + totsum ars)) wb False
-        Root : (0 clustNZ : IsSucc clustSize) =>
+              Node (MkNodeCfg clustSize) (
+                  let cur' = divCeilNZ (DirentSize * (2 + k)) clustSize
+                  in MkNodeArgs cur' (cur' + totsum ars) @{lteAddRight cur' {m = totsum ars}}
+              ) wb False
+        Root : forall k, ars, clustSize.
+               (0 clustNZ : IsSucc clustSize) =>
                (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb False) ->
-               Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ (DirentSize * k) clustSize) (divCeilNZ (DirentSize * k) clustSize + totsum ars)) wb True
+               Node (MkNodeCfg clustSize) (
+                   let cur' = divCeilNZ (DirentSize * k) clustSize
+                   in MkNodeArgs cur' (cur' + totsum ars) @{lteAddRight cur' {m = totsum ars}}
+               ) wb True
 
 namespace MaybeNode
     public export
@@ -185,19 +195,23 @@ genPaddedFilenameVect padlen len prf = rewrite sym $ plusMinusLte len padlen prf
                                    rewrite plusCommutative (minus padlen len) len in
                                    flip (++) (fromVect $ replicate (minus padlen len) $ cast ' ') <$> genValidFilenameChars len
 
-boundedRange' : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => (fuel : Nat) -> Subset (List Nat) (All $ flip LT b)
-boundedRange' a b 0 = Element [] []
+boundedRange' : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => (fuel : Nat) -> List $ Subset Nat (`LT` b)
+boundedRange' a b 0 = []
 boundedRange' a b (S k) with (decomposeLte a b prf)
-  boundedRange' a b (S k) | (Right peq) = Element [] []
+  boundedRange' a b (S k) | (Right peq) = []
   boundedRange' a b (S k) | (Left plt) with (boundedRange' (S a) b k)
-    boundedRange' a b (S k) | (Left plt) | Element fst snd = Element (a :: fst) (plt :: snd)
+    boundedRange' a b (S k) | (Left plt) | ps = (Element a plt) :: ps
 
-boundedRange : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => Subset (List Nat) (All $ flip LTE b)
-boundedRange a b with (boundedRange' a (S b) (S $ minus b a) @{lteSuccRight prf})
-    boundedRange a b | Element fst snd = Element fst (mapProperty fromLteSucc snd)
+public export
+boundedRangeLT : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => List $ Subset Nat (`LT` b)
+boundedRangeLT a b = boundedRange' a b (minus b a)
+
+public export
+boundedRangeLTE : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => List $ Subset Nat (`LTE` b)
+boundedRangeLTE a b= map (bimap id fromLteSucc) $ boundedRange' a (S b) (S $ minus b a) @{lteSuccRight prf}
 
 genPaddedName : (padlen : Nat) -> LTE 1 padlen => Gen MaybeEmpty (VectBits8 padlen)
-genPaddedName padlen = oneOf $ choiceMap (relax {ne=False} . alternativesOf . uncurry (genPaddedFilenameVect padlen)) (uncurry pushIn $ boundedRange 1 padlen)
+genPaddedName padlen = oneOf $ choiceMap (relax {ne=False} . alternativesOf . uncurry (genPaddedFilenameVect padlen)) (boundedRangeLTE 1 padlen)
 
 public export
 genFilename : Gen MaybeEmpty Filename
@@ -250,33 +264,69 @@ genNameTree : Fuel ->
               Gen MaybeEmpty (ar ** node ** NameTree node {cfg} {ar} {wb} {fs})
 
 interface ByteRepr a n | n where
-  byteRepr : a -> ByteVect n
+    byteRepr : a -> ByteVect n
 
 ByteRepr Bits8 1 where
-  byteRepr x = singleton x
+    byteRepr x = singleton x
 
 ByteRepr Bits16 2 where
-  byteRepr n = pack $ cast <$> [ n .&. 0xff
-                               , n `shiftR` 8
-                               ]
+    byteRepr n = pack $ cast <$> [ n .&. 0xff
+                                 , n `shiftR` 8
+                                 ]
 
 ByteRepr Bits32 4 where
-  byteRepr n = pack $ cast <$> [ n .&. 0xff
-                               , (n `shiftR` 8) .&. 0xff
-                               , (n `shiftR` 16) .&. 0xff
-                               , (n `shiftR` 24) .&. 0xff
-                               ]
+    byteRepr n = pack $ cast <$> [ n .&. 0xff
+                                 , (n `shiftR` 8) .&. 0xff
+                                 , (n `shiftR` 16) .&. 0xff
+                                 , (n `shiftR` 24) .&. 0xff
+                                 ]
 
 ByteRepr Bits64 8 where
-  byteRepr n = pack $ cast <$> [ n .&. 0xff
-                               , (n `shiftR` 8) .&. 0xff
-                               , (n `shiftR` 16) .&. 0xff
-                               , (n `shiftR` 24) .&. 0xff
-                               , (n `shiftR` 32) .&. 0xff
-                               , (n `shiftR` 40) .&. 0xff
-                               , (n `shiftR` 48) .&. 0xff
-                               , (n `shiftR` 56) .&. 0xff
-                               ]
+    byteRepr n = pack $ cast <$> [ n .&. 0xff
+                                 , (n `shiftR` 8) .&. 0xff
+                                 , (n `shiftR` 16) .&. 0xff
+                                 , (n `shiftR` 24) .&. 0xff
+                                 , (n `shiftR` 32) .&. 0xff
+                                 , (n `shiftR` 40) .&. 0xff
+                                 , (n `shiftR` 48) .&. 0xff
+                                 , (n `shiftR` 56) .&. 0xff
+                                 ]
+
+record BootSectorData where
+    constructor MkBootSectorData
+    clustSize  : Nat
+    dataClust  : Nat
+    rootClust  : Nat
+    bytsPerSec : Nat
+    secPerClus : Nat
+    rsvdSecCnt : Nat
+    numFats    : Nat
+    fatSz      : Nat
+    activeFat  : Nat
+    onlyOneFat : Bool
+
+genBootSectorData : (clustSize : Nat) -> (dataClust : Nat) -> (rootClust : Nat) -> Gen MaybeEmpty BootSectorData
+genBootSectorData clustSize dataClust rootClust = do
+    let bytsPerSec : Nat
+        bytsPerSec   = 512
+    let secPerClus   = divNatNZ clustSize bytsPerSec %search
+    let rsvdSecCnt   = 32
+    let numFats      = 2
+    let fatSz        = dataClust * 4 
+    activeFat       <- elements' $ the (List Nat) $ map cast $ [0 .. (minus numFats 1)]
+    onlyOneFat      <- elements' $ the (List _) [False, True]
+    pure $ MkBootSectorData { clustSize
+                            , dataClust
+                            , rootClust
+                            , bytsPerSec
+                            , secPerClus
+                            , rsvdSecCnt
+                            , numFats
+                            , fatSz
+                            , activeFat
+                            , onlyOneFat
+                            }
+
 
 record BootSector where
     constructor MkBootSector
@@ -310,23 +360,18 @@ record BootSector where
 
 -- %runElab derive "BootSector" [Barbie]
 
-bootSectGen : (clustSize : Nat) -> (dataClust : Nat) -> (rootClust : Nat) -> Gen MaybeEmpty BootSector
-bootSectGen clustSize dataClust rootClust = do
+genBootSector : BootSectorData -> Gen MaybeEmpty BootSector
+genBootSector bsdata = do
     bs_jmpBoot         <- oneOf $ alternativesOf (do pure $ pack [0xEB, !genBits8, 0x90])
                             ++ alternativesOf (do pure $ pack [0xE9, !genBits8, !genBits8])
     bs_OEMName         <- packVect <$> genVectBits8 _
     -- TODO: generate powers of 2 from 512 to clustSize
-    let bytsPerSec : Nat
-        bytsPerSec = 512
-    let bpb_BytsPerSec  = byteRepr $ cast bytsPerSec
-    let secPerClus      = divNatNZ clustSize bytsPerSec %search
-    let bpb_SecPerClus  = byteRepr $ cast $ secPerClus
+    let bpb_BytsPerSec  = byteRepr $ cast bsdata.bytsPerSec
+    let bpb_SecPerClus  = byteRepr $ cast $ bsdata.secPerClus
     -- TODO: maybe add some sectors for fun here
-    let rsvdSecCnt       = 32
-    let bpb_RsvdSecCnt  = byteRepr $ cast rsvdSecCnt
+    let bpb_RsvdSecCnt  = byteRepr $ cast bsdata.rsvdSecCnt
     -- TODO: generate from 1 to 8 FATs
-    let numFATs          = 2
-    let bpb_NumFATs     = byteRepr $ cast numFATs
+    let bpb_NumFATs     = byteRepr $ cast bsdata.numFats
     let bpb_RootEntCnt  = byteRepr 0
     let bpb_TotSec16    = byteRepr 0
     bpb_Media          <- elements' $ byteRepr <$> 
@@ -335,15 +380,13 @@ bootSectGen clustSize dataClust rootClust = do
     bpb_SecPerTrk      <- packVect <$> genVectBits8 _
     bpb_NumHeads       <- packVect <$> genVectBits8 _
     let bpb_HiddSec     = byteRepr 0
-    let tFATSz32        = dataClust * 4 
-    let bpb_TotSec32    = byteRepr $ cast $ rsvdSecCnt + numFATs * tFATSz32 + dataClust * secPerClus
-    let bpb_FATSz32     = byteRepr $ cast tFATSz32
+    let tFATSz32        = bsdata.dataClust * 4 
+    let bpb_TotSec32    = byteRepr $ cast $ bsdata.rsvdSecCnt + bsdata.numFats * bsdata.fatSz + bsdata.dataClust * bsdata.secPerClus
+    let bpb_FATSz32     = byteRepr $ cast bsdata.fatSz
     -- TODO: generate mirroring and stuff
-    activeFAT          <- elements' $ the (List Bits16) $ map cast $ [0 .. (minus numFATs 1)]
-    onlyOneFAT         <- elements' $ the (List Bits16) [0, 1]
-    let bpb_ExtFlags    = byteRepr $ activeFAT .|. (onlyOneFAT `shiftL` 7)
+    let bpb_ExtFlags    = byteRepr $ cast bsdata.activeFat .|. (the Bits16 (if bsdata.onlyOneFat then 1 else 0) `shiftL` 7)
     let bpb_FSVer       = byteRepr 0
-    let bpb_RootClus    = byteRepr $ cast rootClust
+    let bpb_RootClus    = byteRepr $ cast bsdata.rootClust
     let bpb_FSInfo      = byteRepr 1
     let bpb_BkBootSec   = byteRepr 6
     let bpb_Reserved    = replicate _ 0
@@ -420,20 +463,10 @@ fsInfoGen dataClust = do
 %runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HSnocVectMaybeNode"]
 -- %runElab deriveIndexed "Filesystem" [Show]
 
-padBlob : (clustSize : Nat) -> (0 clustNZ : IsSucc clustSize) -> {n : Nat} -> SnocVectBits8 n -> SnocVectBits8 (divCeilNZ n clustSize @{clustNZ} * clustSize)
-padBlob clustSize clustNZ sx with (DivisionTheorem n clustSize clustNZ clustNZ, boundModNatNZ n clustSize clustNZ) | (modNatNZ n clustSize clustNZ)
-  _ | (cc, blt) | 0  = rewrite sym cc in sx
-  _ | (cc, blt) | m@(S k) = do
-    rewrite sym $ cong (+ divNatNZ n clustSize clustNZ * clustSize) $ plusMinusLte m clustSize (lteSuccLeft blt)
-    rewrite sym $ plusAssociative (minus clustSize m) m (divNatNZ n clustSize clustNZ * clustSize)
-    rewrite sym cc
-    rewrite plusCommutative (minus clustSize m) n
-    sx <>< (replicate (minus clustSize m) 0)
-
-serializeNode : Node (MkNodeCfg clustSize @{clustNZ}) (MkNodeArgs cur tot) True fs -> ByteVect (cur * clustSize)
-serializeNode (FileB meta x) = ?vectttt x
-serializeNode (Dir meta entries) = ?serializeNode_rhs_2
-serializeNode (Root entries) = ?serializeNode_rhs_3
+-- serializeNode : {clustSize : Nat} -> (0 clustNZ : IsSucc clustSize) => (node : Node (MkNodeCfg clustSize) (MkNodeArgs cur tot) True fs) -> NameTree node -> IArray tot (Fin m) -> ByteVect (cur * clustSize)
+-- serializeNode (FileB meta x) names cmap = packVect $ padBlob clustSize clustNZ x
+-- serializeNode (Dir meta entries) names cmap = ?serializeNode_rhs_2
+-- serializeNode (Root entries) names cmap = ?serializeNode_rhs_3
 
 {-
 Boot sector generation strategy:

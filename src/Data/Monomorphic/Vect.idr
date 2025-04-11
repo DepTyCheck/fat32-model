@@ -102,6 +102,24 @@ namespace SnocVectBits8
     sx <>< ((::) x xs {n=m'}) =
         rewrite sym $ plusSuccRightSucc n m' in
             sx :< x <>< xs
+
+    -- public export
+    -- (<>>) : SnocVectBits8 n -> VectBits8 m -> VectBits8 (n + m)
+    -- Lin       <>> xs = xs
+    -- ((:<) sx x {n=n'}) <>> xs =
+    --     rewrite plusSuccRightSucc n' m in
+    --       sx <>> x :: xs
+    
+    public export
+    (<>>) : SnocVectBits8 n -> Vect m Bits8 -> Vect (n + m) Bits8
+    Lin       <>> xs = xs
+    ((:<) sx x {n=n'}) <>> xs =
+        rewrite plusSuccRightSucc n' m in
+          sx <>> x :: xs
+    
+    public export
+    packVect : {n : Nat} -> SnocVectBits8 n -> ByteVect n
+    packVect sx = rewrite sym $ plusZeroRightNeutral n in packVect $ sx <>> []
     
     public export
     genSnocVectBits8 : (n : Nat) -> Gen MaybeEmpty (SnocVectBits8 n)
