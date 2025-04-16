@@ -275,19 +275,14 @@ namespace NameTree
 
 public export
 genNameTree : Fuel ->
-              (
-                Fuel ->
-                (cfg : NodeCfg) ->
-                (wb : Bool) ->
-                (fs : Bool) ->
-                Gen MaybeEmpty (ar ** Node cfg ar wb fs)
-              ) =>
               (Fuel -> Gen MaybeEmpty Bits8) =>
               (Fuel -> Gen MaybeEmpty Filename) =>
-              (fs : Bool) ->
-              (wb : Bool) ->
               (cfg : NodeCfg) ->
-              Gen MaybeEmpty (ar ** node ** NameTree node {cfg} {ar} {wb} {fs})
+              (ar : NodeArgs) ->
+              (wb : Bool) ->
+              (fs : Bool) ->
+              (node : Node cfg ar wb fs) ->
+              Gen MaybeEmpty $ NameTree node
 
 interface ByteRepr a n | n where
     byteRepr : a -> ByteVect n

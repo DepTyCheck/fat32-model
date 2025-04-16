@@ -37,6 +37,13 @@ repr32' m = [ cast $ m .&. 0xff
             , cast $ (m `shiftR` 24) .&. 0xff
             ]
 
+repr32'' : Bits32 -> IBuffer 4 
+repr32'' m = buffer [ cast $ m .&. 0xff
+                    , cast $ (m `shiftR` 8) .&. 0xff
+                    , cast $ (m `shiftR` 16) .&. 0xff
+                    , cast $ (m `shiftR` 24) .&. 0xff
+                    ]
+
 emptyDirent : VectBits8 DirentSize
 emptyDirent = 0xE5 :: replicate _ 0
 
@@ -55,6 +62,11 @@ makeDirent node fname cnum with (repr32' $ cast cnum)
     makeDirent Nothing _ _ | _ = emptyDirent
 
 
+mapRangeWithNextVal : List (Subset Nat (`LT` b)) -> List (Subset Nat (`LT` b), Nat) 
+mapRangeWithNextVal [] = []
+mapRangeWithNextVal (x :: []) = [(x, 0)]
+mapRangeWithNextVal (x :: (y@(Element fst snd) :: xs)) = (x, fst) :: mapRangeWithNextVal (y::xs)
+
 writeBlob : (clustSize' : Nat) ->
             (0 clustNZ : IsSucc clustSize') =>
             {k : Nat} ->
@@ -62,15 +74,17 @@ writeBlob : (clustSize' : Nat) ->
             (currClust : Nat) ->
             (cmap : IArray cls (Fin tcls)) ->
             (dataOffset : Nat) ->
+            (fatOffset : Nat) ->
             (0 clsBounds : LTE (currClust + divCeilNZ k clustSize') cls) =>
             (0 tszBounds : LTE (dataOffset + tcls * clustSize') tsz) =>
+            (0 fatBounds : LTE (fatOffset + tcls * 4) tsz) =>
             (image : MArray s tsz Bits8) ->
             Pure s ()
-writeBlob clustSize' blob currClust cmap dataOffset image = do
+writeBlob clustSize' blob currClust cmap dataOffset fatOffset image = do
     let (BV blobBuf blobOff blobPrf) = packVect $ padBlob clustSize' clustNZ blob
-    for_ (boundedRangeLT 0 (divCeilNZ k clustSize')) $ forFile blobBuf blobOff blobPrf
-    where forFile : IBuffer blen -> (boff : Nat) -> (0 bprf : LTE (boff + (divCeilNZ k clustSize') * clustSize') blen) -> Subset Nat (`LT` divCeilNZ k clustSize') -> Pure s ()
-          forFile bbuf boff bprf (Element cl clp) = do
+    for_ (mapRangeWithNextVal $ boundedRangeLT 0 (divCeilNZ k clustSize')) $ forFile blobBuf blobOff blobPrf
+    where forFile : IBuffer blen -> (boff : Nat) -> (0 bprf : LTE (boff + (divCeilNZ k clustSize') * clustSize') blen) -> (Subset Nat (`LT` divCeilNZ k clustSize'), Nat) -> Pure s ()
+          forFile bbuf boff bprf (Element cl clp, nxt) = do
               let absclust : Fin tcls
                   absclust = atNat cmap (currClust + cl) @{
                       rewrite plusSuccRightSucc currClust cl
@@ -86,6 +100,13 @@ writeBlob clustSize' blob currClust cmap dataOffset image = do
                   rewrite plusCommutative (finToNat absclust * clustSize') clustSize'
                   (plusLteMonotoneLeft dataOffset _ _ $ multLteMonotoneLeft _ tcls clustSize' $ elemSmallerThanBound absclust) `transitive` tszBounds
               }
+              let val = repr32'' $ cast nxt
+              lift1 $ icopyToArray val 0 (fatOffset + finToNat absclust * 4) 4 image @{Relation.reflexive} @{do
+                  rewrite sym $ plusAssociative fatOffset (finToNat absclust * 4) 4
+                  rewrite plusCommutative (finToNat absclust * 4) 4
+                  plusLteMonotoneLeft fatOffset _ _ (multLteMonotoneLeft _ _ 4 $ elemSmallerThanBound absclust) `transitive` fatBounds
+              }
+
 
 
 mapNodesAndNamesToDirents : {clustSize : Nat} ->
@@ -109,8 +130,10 @@ serializeNode : {clustSize' : Nat} ->
                 (names : NameTree node) ->
                 (cmap : IArray cls (Fin tcls)) ->
                 (dataOffset : Nat) ->
+                (fatOffset : Nat) ->
                 (0 clsBounds : LTE (currClust + tot) cls) =>
                 (0 tszBounds : LTE (dataOffset + tcls * clustSize') tsz) =>
+                (0 fatBounds : LTE (fatOffset + tcls * 4) tsz) =>
                 (image : MArray s tsz Bits8) ->
                 Pure s ()
 
@@ -121,25 +144,27 @@ forNodesAndNameTrees_ : {clustSize' : Nat} ->
                         (currClust : Nat) ->
                         (cmap : IArray cls (Fin tcls)) ->
                         (dataOffset : Nat) ->
+                        (fatOffset : Nat) ->
                         (0 clsBounds : LTE (currClust + totsum ars) cls) =>
                         (0 tszBounds : LTE (dataOffset + tcls * clustSize') tsz) =>
+                        (0 fatBounds : LTE (fatOffset + tcls * 4) tsz) =>
                         (image : MArray s tsz Bits8) ->
                         Pure s ()
-forNodesAndNameTrees_ [<] [<] currClust cmap dataOffset image = pure ()
-forNodesAndNameTrees_ ((:<) sx (Just x) {ar=MkNodeArgs cur tot @{ctprf}} {ars=ars'}) (sy :< (Just y)) currClust cmap dataOffset image = do
-    serializeNode x currClust y cmap dataOffset image @{%search} @{plusLteMonotoneLeft currClust _ _ (totsumLTE {cur} {ctprf}) `transitive` clsBounds}
-    forNodesAndNameTrees_ sx sy (currClust + tot) cmap dataOffset image @{%search} @{rewrite sym $ plusAssociative currClust tot (totsum ars') in clsBounds}
-forNodesAndNameTrees_ ((:<) sx Nothing {ar=MkNodeArgs cur tot @{ctprf}} {ars=ars'}) (sy :< Nothing) currClust cmap dataOffset image = forNodesAndNameTrees_ sx sy (currClust + tot) cmap dataOffset image @{%search} @{rewrite sym $ plusAssociative currClust tot (totsum ars') in clsBounds}
+forNodesAndNameTrees_ [<] [<] currClust cmap dataOffset fatOffset image = pure ()
+forNodesAndNameTrees_ ((:<) sx (Just x) {ar=MkNodeArgs cur tot @{ctprf}} {ars=ars'}) (sy :< (Just y)) currClust cmap dataOffset fatOffset image = do
+    serializeNode x currClust y cmap dataOffset fatOffset image @{%search} @{plusLteMonotoneLeft currClust _ _ (totsumLTE {cur} {ctprf}) `transitive` clsBounds}
+    forNodesAndNameTrees_ sx sy (currClust + tot) cmap dataOffset fatOffset image @{%search} @{rewrite sym $ plusAssociative currClust tot (totsum ars') in clsBounds}
+forNodesAndNameTrees_ ((:<) sx Nothing {ar=MkNodeArgs cur tot @{ctprf}} {ars=ars'}) (sy :< Nothing) currClust cmap dataOffset fatOffset image = forNodesAndNameTrees_ sx sy (currClust + tot) cmap dataOffset fatOffset image @{%search} @{rewrite sym $ plusAssociative currClust tot (totsum ars') in clsBounds}
 
 
-serializeNode (FileB meta blob {k}) currClust names cmap dataOffset image = 
-    writeBlob clustSize' blob currClust cmap dataOffset image
-serializeNode (Dir meta nodes {k} {ars}) currClust (Dir names nameTrees {nodes}) cmap dataOffset image = do
-    writeBlob clustSize' (replace {p = SnocVectBits8} (sym $ multDistributesOverPlusRight DirentSize 2 k) $ ([<] <>< dotDirent <>< dotdotDirent) ++ mapNodesAndNamesToDirents nodes names (currClust + cur)) currClust cmap dataOffset image {k = DirentSize * (2 + k)} @{%search} @{plusLteMonotoneLeft currClust _ _ ctprf `transitive` clsBounds}
-    forNodesAndNameTrees_ nodes nameTrees (currClust + cur) cmap dataOffset image @{%search} @{rewrite sym $  plusAssociative currClust cur (totsum ars) in clsBounds}
-serializeNode (Root nodes {k} {ars}) currClust (Root names nameTrees {nodes}) cmap dataOffset image = do
-    writeBlob clustSize' (mapNodesAndNamesToDirents nodes names (currClust + cur)) currClust cmap dataOffset image @{%search} @{plusLteMonotoneLeft currClust _ _ ctprf `transitive` clsBounds}
-    forNodesAndNameTrees_ nodes nameTrees (currClust + cur) cmap dataOffset image @{%search} @{rewrite sym $  plusAssociative currClust cur (totsum ars) in clsBounds}
--- serializeNode _ _ _ _ _ _ = pure ()
+serializeNode (FileB meta blob {k}) currClust names cmap dataOffset fatOffset image = 
+    writeBlob clustSize' blob currClust cmap dataOffset fatOffset image
+serializeNode (Dir meta nodes {k} {ars}) currClust (Dir names nameTrees {nodes}) cmap dataOffset fatOffset image = do
+    writeBlob clustSize' (replace {p = SnocVectBits8} (sym $ multDistributesOverPlusRight DirentSize 2 k) $ ([<] <>< dotDirent <>< dotdotDirent) ++ mapNodesAndNamesToDirents nodes names (currClust + cur)) currClust cmap dataOffset fatOffset image {k = DirentSize * (2 + k)} @{%search} @{plusLteMonotoneLeft currClust _ _ ctprf `transitive` clsBounds}
+    forNodesAndNameTrees_ nodes nameTrees (currClust + cur) cmap dataOffset fatOffset image @{%search} @{rewrite sym $  plusAssociative currClust cur (totsum ars) in clsBounds}
+serializeNode (Root nodes {k} {ars}) currClust (Root names nameTrees {nodes}) cmap dataOffset fatOffset image = do
+    writeBlob clustSize' (mapNodesAndNamesToDirents nodes names (currClust + cur)) currClust cmap dataOffset fatOffset image @{%search} @{plusLteMonotoneLeft currClust _ _ ctprf `transitive` clsBounds}
+    forNodesAndNameTrees_ nodes nameTrees (currClust + cur) cmap dataOffset fatOffset image @{%search} @{rewrite sym $  plusAssociative currClust cur (totsum ars) in clsBounds}
+serializeNode _ _ _ _ _ _ _ = pure ()
 
 

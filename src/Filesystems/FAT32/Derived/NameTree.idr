@@ -7,5 +7,4 @@ import public Deriving.DepTyCheck.Gen
 
 %logging "deptycheck.derive" 5
 
-Filesystems.FAT32.genNameTree = deriveGen
-
+-- Filesystems.FAT32.genNameTree = deriveGen

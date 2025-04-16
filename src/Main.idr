@@ -72,17 +72,29 @@ optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeCfg "<size>") "clust
        ]
 
 
-main : IO ()
-main = do
-    let usage : Lazy String := usageInfo "Usage:" optDescs
-    args <- fromMaybe [] <$> tail' <$> getArgs
-    let MkResult {options, nonOptions, unrecognized, errors} := getOpt Permute optDescs args
-    when (isCons nonOptions || isCons unrecognized) $ die "unrecognized options \{show $ nonOptions ++ unrecognized}\n\{usage}"
-    when (isCons errors) $ die "parsing errors \{show errors}\n\{usage}"
-    let cfg : Config Maybe := foldl (bzipWith (\x, y => x <|> y)) emptyCfg options
-    let cfg : Cfg := bzipWith (\d, m => fromMaybe d m) defaultCfg cfg
-    when cfg.help $ do
-        putStrLn usage
-        exitSuccess
-    let val : Maybe (k ** Filesystem cfg.params k) := runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} (genFilesystem cfg.fuel cfg.params)
-    when cfg.printGen $ printLn val
+-- main : IO ()
+-- main = do
+--     let usage : Lazy String := usageInfo "Usage:" optDescs
+--     args <- fromMaybe [] <$> tail' <$> getArgs
+--     let MkResult {options, nonOptions, unrecognized, errors} := getOpt Permute optDescs args
+--     when (isCons nonOptions || isCons unrecognized) $ die "unrecognized options \{show $ nonOptions ++ unrecognized}\n\{usage}"
+--     when (isCons errors) $ die "parsing errors \{show errors}\n\{usage}"
+--     let cfg : Config Maybe := foldl (bzipWith (\x, y => x <|> y)) emptyCfg options
+--     let cfg : Cfg := bzipWith (\d, m => fromMaybe d m) defaultCfg cfg
+--     when cfg.help $ do
+--         putStrLn usage
+--         exitSuccess
+--     let val : Maybe (k ** Filesystem cfg.params k) := runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} (genFilesystem cfg.fuel cfg.params)
+--     when cfg.printGen $ printLn val
+
+%logging "deptycheck.derive" 5
+%language ElabReflection
+%runElab deriveGenPrinter ( Fuel ->
+              (Fuel -> Gen MaybeEmpty Bits8) =>
+              (Fuel -> Gen MaybeEmpty Filename) =>
+              (cfg : NodeCfg) ->
+              (ar : NodeArgs) ->
+              (wb : Bool) ->
+              (fs : Bool) ->
+              (node : Node cfg ar wb fs) ->
+              Gen MaybeEmpty $ NameTree node )
