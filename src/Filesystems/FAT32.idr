@@ -89,11 +89,16 @@ namespace SnovVectNodeArgs
     totsum [<] = 0
     totsum (xs :< (MkNodeArgs cur tot)) = tot + totsum xs
 
+    public export
+    totsumLTE : {tot : Nat} -> {0 ctprf : LTE cur tot} -> LTE tot $ totsum $ ars :< MkNodeArgs cur tot @{ctprf}
+    totsumLTE = lteAddRight tot
+
 namespace HSnocVectMaybeNode
     public export
     data HSnocVectMaybeNode : NodeCfg -> (k : Nat) -> SnocVectNodeArgs k -> Bool -> Bool -> Type where
         Lin : HSnocVectMaybeNode cfg 0 [<] wb fs
-        (:<) : HSnocVectMaybeNode cfg k ars wb fs ->
+        (:<) : {ar : NodeArgs} ->
+               HSnocVectMaybeNode cfg k ars wb fs ->
                MaybeNode cfg ar wb fs ->
                HSnocVectMaybeNode cfg (S k) (ars :< ar) wb fs
 
@@ -120,22 +125,26 @@ namespace Node
         File : (0 clustNZ : IsSucc clustSize) =>
                (meta : Metadata) ->
                {k : Nat} ->
-               Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize)) False False
+               Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize) @{Relation.reflexive}) False False
         FileB : (0 clustNZ : IsSucc clustSize) =>
                 (meta : Metadata) ->
                 {k : Nat} ->
                 SnocVectBits8 k ->
-                Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize)) True False
-        Dir : forall k, ars, clustSize.
+                Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize) @{Relation.reflexive}) True False
+        Dir : forall clustSize.
               (0 clustNZ : IsSucc clustSize) =>
               (meta : Metadata) ->
+              {k : Nat} ->
+              {ars : SnocVectNodeArgs k} ->
               (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb False) ->
               Node (MkNodeCfg clustSize) (
                   let cur' = divCeilNZ (DirentSize * (2 + k)) clustSize
                   in MkNodeArgs cur' (cur' + totsum ars) @{lteAddRight cur' {m = totsum ars}}
               ) wb False
-        Root : forall k, ars, clustSize.
+        Root : forall clustSize.
                (0 clustNZ : IsSucc clustSize) =>
+               {k : Nat} ->
+               {ars : SnocVectNodeArgs k} ->
                (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb False) ->
                Node (MkNodeCfg clustSize) (
                    let cur' = divCeilNZ (DirentSize * k) clustSize
@@ -147,6 +156,11 @@ namespace MaybeNode
     data IndexIn : MaybeNode cfg ar wb fs -> Type where
         Here : IndexIn $ Just node
         There : IndexIn {cfg = MkNodeCfg clustSize @{clustNZ}} xs -> IndexIn $ Just $ Dir @{clustNZ} meta xs
+
+    public export
+    maybe : b -> MaybeNode cfg ar wb fs -> (Node cfg ar wb fs -> b) -> b
+    maybe x Nothing f = x
+    maybe x (Just y) f = f y
 
 public export
 Filesystem : NodeCfg -> NodeArgs -> Type
@@ -220,9 +234,17 @@ genFilename = pure $ MkFilename $ !(genPaddedName FilenameLengthName) ++ !(genPa
 namespace NameTree
     public export
     data NameTree : Node cfg ar wb fs -> Type
+    
+    public export
+    data MaybeNameTree : MaybeNode cfg ar wb fs -> Type
 
     public export
     data UniqNames : HSnocVectMaybeNode cfg k ars wb False -> Type
+
+    public export
+    data HSnocVectNameTree : HSnocVectMaybeNode cfg k ars True False -> Type where
+        Lin : HSnocVectNameTree [<]
+        (:<) : HSnocVectNameTree nodes -> MaybeNameTree node -> HSnocVectNameTree (nodes :< node)
 
     public export
     data NameIsNew : (nodes : HSnocVectMaybeNode cfg k ars True False) -> UniqNames nodes -> Filename -> Type
@@ -230,8 +252,12 @@ namespace NameTree
     data NameTree : Node cfg ar wb fs -> Type where
         File : NameTree $ File @{clustNZ} meta
         FileB : NameTree $ FileB @{clustNZ} meta blob
-        Dir : UniqNames nodes -> NameTree $ Dir @{clustNZ} meta nodes
-        Root : UniqNames nodes -> NameTree $ Root @{clustNZ} nodes
+        Dir : UniqNames nodes -> HSnocVectNameTree nodes -> NameTree $ Dir @{clustNZ} meta nodes
+        Root : UniqNames nodes -> HSnocVectNameTree nodes -> NameTree $ Root @{clustNZ} nodes
+
+    data MaybeNameTree : MaybeNode cfg ar wb fs -> Type where
+        Nothing : MaybeNameTree Nothing
+        Just : NameTree node -> MaybeNameTree $ Just node
 
     data UniqNames : HSnocVectMaybeNode cfg k ars wb False -> Type where
         Empty : UniqNames [<]
@@ -394,7 +420,8 @@ genBootSector bsdata = do
     let bs_Reserved1    = replicate _ 0
     let bs_BootSig      = byteRepr 0x29
     bs_VolID           <- packVect <$> genVectBits8 _
-    bs_VolLab          <- packVect <$> genVectBits8 _
+    let bs_VolLab       = pack $ map cast ['N', 'O', ' ', 'N', 'A', 'M', 'E', ' ', ' ', ' ', ' ']
+    -- bs_VolLab          <- packVect <$> genVectBits8 _
     let bs_FilSysType   = pack $ map cast ['F', 'A', 'T', '3', '2', ' ', ' ', ' ']
     pure $ MkBootSector { bs_jmpBoot
                         , bs_OEMName

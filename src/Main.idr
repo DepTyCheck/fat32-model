@@ -2,6 +2,7 @@ module Main
 
 import Data.Nat
 import Data.Monomorphic.Vect
+import Filesystems.FAT32.Pretty
 import Filesystems.FAT32.Derived.Node
 import System.Random.Pure.StdGen
 import System
