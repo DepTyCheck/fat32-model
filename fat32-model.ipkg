@@ -20,7 +20,7 @@ depends = deptycheck
         , getopts
         , barbies
         , array
-        , bytestring
+        , algebra
 
 -- modules to install
 modules = Filesystems.FAT32

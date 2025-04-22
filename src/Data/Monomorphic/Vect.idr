@@ -3,7 +3,8 @@ module Data.Monomorphic.Vect
 import public Data.Nat
 import Derive.Prelude
 import Deriving.DepTyCheck.Gen
-import public Data.ByteVect
+import public Data.Buffer.Core
+import public Data.Buffer.Indexed
 
 %default total
 
@@ -21,10 +22,6 @@ import public Data.ByteVect
 public export %hint
 genBits8 : Gen MaybeEmpty Bits8
 genBits8 = elements' $ the (List Bits8) [0..255]
-
-public export
-packVect : {n : Nat} -> Vect n Bits8 -> ByteVect n
-packVect xs = BV (buffer xs) 0 reflexive
 
 namespace VectBits8
     public export
@@ -75,8 +72,8 @@ namespace VectBits8
     genVectBits8 (S k) = [| genBits8 :: genVectBits8 k |]
 
     public export
-    packVect : {n : Nat} -> VectBits8 n -> ByteVect n
-    packVect = packVect . toVect
+    packVect : {n : Nat} -> VectBits8 n -> IBuffer n
+    packVect = buffer . toVect
 
 namespace SnocVectBits8
     public export
@@ -118,8 +115,8 @@ namespace SnocVectBits8
           sx <>> x :: xs
     
     public export
-    packVect : {n : Nat} -> SnocVectBits8 n -> ByteVect n
-    packVect sx = rewrite sym $ plusZeroRightNeutral n in packVect $ sx <>> []
+    packVect : {n : Nat} -> SnocVectBits8 n -> IBuffer n
+    packVect sx = rewrite sym $ plusZeroRightNeutral n in buffer $ sx <>> []
     
     public export
     genSnocVectBits8 : (n : Nat) -> Gen MaybeEmpty (SnocVectBits8 n)

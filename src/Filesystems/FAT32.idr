@@ -11,9 +11,9 @@ import public Derive.Prelude
 import Derive.Barbie
 import Control.Barbie
 import public Data.DPair
-import public Data.ByteVect
 import Data.Bits
 import Data.Array.Core
+import Data.Buffer.Core
 import Data.Array.Indexed
 
 %default total
@@ -78,7 +78,7 @@ namespace MaybeNode
         Nothing : MaybeNode cfg ar wb fs
         Just : Node cfg ar wb fs -> MaybeNode cfg ar wb fs
 
-namespace SnovVectNodeArgs
+namespace SnocVectNodeArgs
     public export
     data SnocVectNodeArgs : Nat -> Type where
         Lin : SnocVectNodeArgs 0
@@ -119,6 +119,7 @@ namespace HSnocVectMaybeNode
     traverse' g [<] = pure [<]
     traverse' g (xs :< x) = [| traverse' g xs :< g x |]
 
+-- TODO: Add upper bound of 268'435'445 clusters
 namespace Node
     public export
     data Node : NodeCfg -> NodeArgs -> Bool -> Bool -> Type where
@@ -209,6 +210,7 @@ genPaddedFilenameVect padlen len prf = rewrite sym $ plusMinusLte len padlen prf
                                    rewrite plusCommutative (minus padlen len) len in
                                    flip (++) (fromVect $ replicate (minus padlen len) $ cast ' ') <$> genValidFilenameChars len
 
+-- TODO: erase LTE proofs
 boundedRange' : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => (fuel : Nat) -> List $ Subset Nat (`LT` b)
 boundedRange' a b 0 = []
 boundedRange' a b (S k) with (decomposeLte a b prf)
@@ -250,10 +252,27 @@ namespace NameTree
     data NameIsNew : (nodes : HSnocVectMaybeNode cfg k ars True False) -> UniqNames nodes -> Filename -> Type
 
     data NameTree : Node cfg ar wb fs -> Type where
-        File : NameTree $ File @{clustNZ} meta
-        FileB : NameTree $ FileB @{clustNZ} meta blob
-        Dir : UniqNames nodes -> HSnocVectNameTree nodes -> NameTree $ Dir @{clustNZ} meta nodes
-        Root : UniqNames nodes -> HSnocVectNameTree nodes -> NameTree $ Root @{clustNZ} nodes
+        File : {0 clustSize : Nat} ->
+               {0 clustNZ : IsSucc clustSize} ->
+               {0 k : Nat} ->
+               NameTree $ File @{clustNZ} meta {k}
+        FileB : {0 clustSize : Nat} ->
+                {0 clustNZ : IsSucc clustSize} ->
+                {0 k : Nat} ->
+                {0 blob : SnocVectBits8 k} ->
+                NameTree $ FileB @{clustNZ} meta blob {k}
+        Dir : {0 clustSize : Nat} ->
+              {0 clustNZ : IsSucc clustSize} ->
+              {0 k : Nat} ->
+              {0 ars : SnocVectNodeArgs k} ->
+              {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True False} ->
+              UniqNames nodes -> HSnocVectNameTree nodes -> NameTree $ Dir @{clustNZ} meta nodes
+        Root : {0 clustSize : Nat} ->
+               {0 clustNZ : IsSucc clustSize} ->
+               {0 k : Nat} ->
+               {0 ars : SnocVectNodeArgs k} ->
+               {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True False} ->
+               UniqNames nodes -> HSnocVectNameTree nodes -> NameTree $ Root @{clustNZ} nodes
 
     data MaybeNameTree : MaybeNode cfg ar wb fs -> Type where
         Nothing : MaybeNameTree Nothing
@@ -284,198 +303,6 @@ genNameTree : Fuel ->
               (node : Node cfg ar wb fs) ->
               Gen MaybeEmpty $ NameTree node
 
-interface ByteRepr a n | n where
-    byteRepr : a -> ByteVect n
-
-ByteRepr Bits8 1 where
-    byteRepr x = singleton x
-
-ByteRepr Bits16 2 where
-    byteRepr n = pack $ cast <$> [ n .&. 0xff
-                                 , n `shiftR` 8
-                                 ]
-
-ByteRepr Bits32 4 where
-    byteRepr n = pack $ cast <$> [ n .&. 0xff
-                                 , (n `shiftR` 8) .&. 0xff
-                                 , (n `shiftR` 16) .&. 0xff
-                                 , (n `shiftR` 24) .&. 0xff
-                                 ]
-
-ByteRepr Bits64 8 where
-    byteRepr n = pack $ cast <$> [ n .&. 0xff
-                                 , (n `shiftR` 8) .&. 0xff
-                                 , (n `shiftR` 16) .&. 0xff
-                                 , (n `shiftR` 24) .&. 0xff
-                                 , (n `shiftR` 32) .&. 0xff
-                                 , (n `shiftR` 40) .&. 0xff
-                                 , (n `shiftR` 48) .&. 0xff
-                                 , (n `shiftR` 56) .&. 0xff
-                                 ]
-
-record BootSectorData where
-    constructor MkBootSectorData
-    clustSize  : Nat
-    dataClust  : Nat
-    rootClust  : Nat
-    bytsPerSec : Nat
-    secPerClus : Nat
-    rsvdSecCnt : Nat
-    numFats    : Nat
-    fatSz      : Nat
-    activeFat  : Nat
-    onlyOneFat : Bool
-
-genBootSectorData : (clustSize : Nat) -> (dataClust : Nat) -> (rootClust : Nat) -> Gen MaybeEmpty BootSectorData
-genBootSectorData clustSize dataClust rootClust = do
-    let bytsPerSec : Nat
-        bytsPerSec   = 512
-    let secPerClus   = divNatNZ clustSize bytsPerSec %search
-    let rsvdSecCnt   = 32
-    let numFats      = 2
-    let fatSz        = dataClust * 4 
-    activeFat       <- elements' $ the (List Nat) $ map cast $ [0 .. (minus numFats 1)]
-    onlyOneFat      <- elements' $ the (List _) [False, True]
-    pure $ MkBootSectorData { clustSize
-                            , dataClust
-                            , rootClust
-                            , bytsPerSec
-                            , secPerClus
-                            , rsvdSecCnt
-                            , numFats
-                            , fatSz
-                            , activeFat
-                            , onlyOneFat
-                            }
-
-
-record BootSector where
-    constructor MkBootSector
-    bs_jmpBoot     : ByteVect  3
-    bs_OEMName     : ByteVect  8
-    bpb_BytsPerSec : ByteVect  2
-    bpb_SecPerClus : ByteVect  1
-    bpb_RsvdSecCnt : ByteVect  2
-    bpb_NumFATs    : ByteVect  1
-    bpb_RootEntCnt : ByteVect  2
-    bpb_TotSec16   : ByteVect  2
-    bpb_Media      : ByteVect  1
-    bpb_FATSz16    : ByteVect  2
-    bpb_SecPerTrk  : ByteVect  2
-    bpb_NumHeads   : ByteVect  2
-    bpb_HiddSec    : ByteVect  4
-    bpb_TotSec32   : ByteVect  4
-    bpb_FATSz32    : ByteVect  4
-    bpb_ExtFlags   : ByteVect  2
-    bpb_FSVer      : ByteVect  2
-    bpb_RootClus   : ByteVect  4
-    bpb_FSInfo     : ByteVect  2
-    bpb_BkBootSec  : ByteVect  2
-    bpb_Reserved   : ByteVect 12
-    bs_DrvNum      : ByteVect  1
-    bs_Reserved1   : ByteVect  1
-    bs_BootSig     : ByteVect  1
-    bs_VolID       : ByteVect  4
-    bs_VolLab      : ByteVect 11
-    bs_FilSysType  : ByteVect  8
-
--- %runElab derive "BootSector" [Barbie]
-
-genBootSector : BootSectorData -> Gen MaybeEmpty BootSector
-genBootSector bsdata = do
-    bs_jmpBoot         <- oneOf $ alternativesOf (do pure $ pack [0xEB, !genBits8, 0x90])
-                            ++ alternativesOf (do pure $ pack [0xE9, !genBits8, !genBits8])
-    bs_OEMName         <- packVect <$> genVectBits8 _
-    -- TODO: generate powers of 2 from 512 to clustSize
-    let bpb_BytsPerSec  = byteRepr $ cast bsdata.bytsPerSec
-    let bpb_SecPerClus  = byteRepr $ cast $ bsdata.secPerClus
-    -- TODO: maybe add some sectors for fun here
-    let bpb_RsvdSecCnt  = byteRepr $ cast bsdata.rsvdSecCnt
-    -- TODO: generate from 1 to 8 FATs
-    let bpb_NumFATs     = byteRepr $ cast bsdata.numFats
-    let bpb_RootEntCnt  = byteRepr 0
-    let bpb_TotSec16    = byteRepr 0
-    bpb_Media          <- elements' $ byteRepr <$> 
-                          the (List _) [0xF0, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF]
-    let bpb_FATSz16     = byteRepr 0
-    bpb_SecPerTrk      <- packVect <$> genVectBits8 _
-    bpb_NumHeads       <- packVect <$> genVectBits8 _
-    let bpb_HiddSec     = byteRepr 0
-    let tFATSz32        = bsdata.dataClust * 4 
-    let bpb_TotSec32    = byteRepr $ cast $ bsdata.rsvdSecCnt + bsdata.numFats * bsdata.fatSz + bsdata.dataClust * bsdata.secPerClus
-    let bpb_FATSz32     = byteRepr $ cast bsdata.fatSz
-    -- TODO: generate mirroring and stuff
-    let bpb_ExtFlags    = byteRepr $ cast bsdata.activeFat .|. (the Bits16 (if bsdata.onlyOneFat then 1 else 0) `shiftL` 7)
-    let bpb_FSVer       = byteRepr 0
-    let bpb_RootClus    = byteRepr $ cast bsdata.rootClust
-    let bpb_FSInfo      = byteRepr 1
-    let bpb_BkBootSec   = byteRepr 6
-    let bpb_Reserved    = replicate _ 0
-    let bs_DrvNum       = byteRepr 0x80
-    let bs_Reserved1    = replicate _ 0
-    let bs_BootSig      = byteRepr 0x29
-    bs_VolID           <- packVect <$> genVectBits8 _
-    let bs_VolLab       = pack $ map cast ['N', 'O', ' ', 'N', 'A', 'M', 'E', ' ', ' ', ' ', ' ']
-    -- bs_VolLab          <- packVect <$> genVectBits8 _
-    let bs_FilSysType   = pack $ map cast ['F', 'A', 'T', '3', '2', ' ', ' ', ' ']
-    pure $ MkBootSector { bs_jmpBoot
-                        , bs_OEMName
-                        , bpb_BytsPerSec
-                        , bpb_SecPerClus
-                        , bpb_RsvdSecCnt
-                        , bpb_NumFATs
-                        , bpb_RootEntCnt
-                        , bpb_TotSec16
-                        , bpb_Media
-                        , bpb_FATSz16
-                        , bpb_SecPerTrk
-                        , bpb_NumHeads
-                        , bpb_HiddSec
-                        , bpb_TotSec32
-                        , bpb_FATSz32
-                        , bpb_ExtFlags
-                        , bpb_FSVer
-                        , bpb_RootClus
-                        , bpb_FSInfo
-                        , bpb_BkBootSec
-                        , bpb_Reserved
-                        , bs_DrvNum
-                        , bs_Reserved1
-                        , bs_BootSig
-                        , bs_VolID
-                        , bs_VolLab
-                        , bs_FilSysType
-                        }
-
-
-
-record FSInfo where
-    constructor MkFSInfo
-    fsi_LeadSig    : ByteVect   4
-    fsi_Reserved1  : ByteVect 480
-    fsi_StrucSig   : ByteVect   4
-    fsi_Free_Count : ByteVect   4
-    fsi_Nxt_Free   : ByteVect   4
-    fsi_Reserved2  : ByteVect  12
-    fsi_TrailSig   : ByteVect   4
-
-fsInfoGen : (dataClust : Nat) -> Gen MaybeEmpty FSInfo
-fsInfoGen dataClust = do
-  let fsi_LeadSig   = byteRepr 0x41615252
-  let fsi_Reserved1 = replicate _ 0
-  let fsi_StrucSig  = byteRepr 0x61417272
-  fsi_Free_Count   <- elements' $ the (List _) $ map (byteRepr . cast) $ [0 .. dataClust]
-  fsi_Nxt_Free     <- elements' $ the (List _) $ map (byteRepr . cast) $ [0 .. (minus dataClust 1)]
-  let fsi_Reserved2 = replicate _ 0
-  let fsi_TrailSig  = byteRepr 0xAA550000
-  pure $ MkFSInfo { fsi_LeadSig
-                  , fsi_Reserved1
-                  , fsi_StrucSig
-                  , fsi_Free_Count
-                  , fsi_Nxt_Free
-                  , fsi_Reserved2
-                  , fsi_TrailSig
-                  }
 
 %runElab deriveIndexed "IsSucc" [Show]
 %runElab derive "NodeCfg" [Show]
@@ -485,7 +312,7 @@ fsInfoGen dataClust = do
 %runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HSnocVectMaybeNode"]
 -- %runElab deriveIndexed "Filesystem" [Show]
 
--- serializeNode : {clustSize : Nat} -> (0 clustNZ : IsSucc clustSize) => (node : Node (MkNodeCfg clustSize) (MkNodeArgs cur tot) True fs) -> NameTree node -> IArray tot (Fin m) -> ByteVect (cur * clustSize)
+-- serializeNode : {clustSize : Nat} -> (0 clustNZ : IsSucc clustSize) => (node : Node (MkNodeCfg clustSize) (MkNodeArgs cur tot) True fs) -> NameTree node -> IArray tot (Fin m) -> IBuffer (cur * clustSize)
 -- serializeNode (FileB meta x) names cmap = packVect $ padBlob clustSize clustNZ x
 -- serializeNode (Dir meta entries) names cmap = ?serializeNode_rhs_2
 -- serializeNode (Root entries) names cmap = ?serializeNode_rhs_3
