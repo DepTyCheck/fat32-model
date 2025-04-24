@@ -26,7 +26,7 @@ record Config (m : Type -> Type) where
     params   : m NodeCfg
     fuel1   : m Fuel
     fuel2    : m Fuel
-    fuel3    : m Fuel
+    -- fuel3    : m Fuel
     seed     : m Bits64
     minClust : m Nat
     -- printGen : m Bool
@@ -40,7 +40,7 @@ emptyCfg = MkConfig
     { params   = Nothing
     , fuel1    = Nothing
     , fuel2    = Nothing
-    , fuel3    = Nothing
+    -- , fuel3    = Nothing
     , seed     = Nothing
     , minClust = Nothing
     -- , printGen = Nothing
@@ -56,7 +56,7 @@ defaultCfg = MkConfig
     { params   = MkNodeCfg 32
     , fuel1    = limit 10
     , fuel2    = limit 10
-    , fuel3    = limit 10
+    -- , fuel3    = limit 10
     , seed     = 1450262
     , minClust = 0
     -- , printGen = True
@@ -73,8 +73,8 @@ parseFuel1 s = pure $ {fuel1 := Just $ limit !(parseNat s)} emptyCfg
 parseFuel2 : String -> Either String $ Config Maybe
 parseFuel2 s = pure $ {fuel2 := Just $ limit !(parseNat s)} emptyCfg
 
-parseFuel3 : String -> Either String $ Config Maybe
-parseFuel3 s = pure $ {fuel3 := Just $ limit !(parseNat s)} emptyCfg
+-- parseFuel3 : String -> Either String $ Config Maybe
+-- parseFuel3 s = pure $ {fuel3 := Just $ limit !(parseNat s)} emptyCfg
 
 parseSeed : String -> Either String $ Config Maybe
 parseSeed s = pure $ {seed := Just $ cast !(parseNat s)} emptyCfg
@@ -96,7 +96,7 @@ optDescs : List $ OptDescr $ Config Maybe
 optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeCfg "<size>") "cluster size in bytes"
        , MkOpt ['1'] ["fuel1"] (ReqArg' parseFuel1 "<fuel1>") "fuel for the Node generator"
        , MkOpt ['2'] ["fuel2"] (ReqArg' parseFuel2 "<fuel2>") "fuel for the NameTree generator"
-       , MkOpt ['3'] ["fuel3"] (ReqArg' parseFuel3 "<fuel3>") "fuel for the cmap generator"
+       -- , MkOpt ['3'] ["fuel3"] (ReqArg' parseFuel3 "<fuel3>") "fuel for the cmap generator"
        , MkOpt ['s'] ["seed"] (ReqArg' parseSeed "<seed>") "seed"
        , MkOpt ['m'] ["minclust"] (ReqArg' parseMinClust "<minclust>") "minimum amount of data clusters"
        -- , MkOpt ['q'] ["quiet", "no-print"] (NoArg $ {printGen := Just False} emptyCfg) "don't print the generated value"
@@ -133,7 +133,7 @@ main = do
     --     | Nothing => die "Failed to generate cmap"
     -- printLn cvect
     -- pure ()
-    let (Just (image, size)) = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genImage cfg.fuel1 cfg.fuel2 cfg.fuel3 cfg.params cfg.minClust
+    let (Just (image, size)) = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genImage cfg.fuel1 cfg.fuel2 cfg.params cfg.minClust
         | Nothing => die "failed to generate image"
     Right () <- writeBufferToFile cfg.output image size
         | Left err => die "file error: \{show err}"

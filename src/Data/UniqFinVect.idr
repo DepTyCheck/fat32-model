@@ -69,36 +69,36 @@ allFins'' (S $ S k) = let sx := allFins'' (S k) in believe_me sx :< FS (deah sx)
 
 allFins' : (n : Nat) -> Vect n (Fin n)
 allFins' n = asVect $ allFins'' n
-
-ontoVect : (sx : SnocList a) -> Vect n a -> Vect (length sx + n) a
-ontoVect [<]       xs = xs
-ontoVect (sx :< x) xs =
-  rewrite plusSuccRightSucc (length sx) n in ontoVect sx (x::xs)
-
-traverse1Vect' :
-     (sx : SnocList b)
-  -> (forall n'. a -> Vect n' a -> F1 s b)
-  -> Vect n a
-  -> F1 s (Vect (length sx + n) b)
-traverse1Vect'           sx f []        t = ontoVect sx [] # t
-traverse1Vect' {n = S k} sx f xxs@(x :: xs) t =
-  let Token.(#) v t1 := f x xxs t
-   in rewrite sym (plusSuccRightSucc (length sx) k)
-      in traverse1Vect' (sx :< v) f xs t1
-
-traverse1' :
-  (forall n'. a -> Vect n' a -> F1 s b)
-  -> Vect n a
-  -> F1 s (Vect n b)
-traverse1' = traverse1Vect' [<]
-
-forSuf : Applicative f => Vect n a -> (forall m. Vect m a -> f b) -> f (Vect n b)
-forSuf [] g = pure []
-forSuf xxs@(x :: xs) g = [| g xxs :: forSuf xs g |]
-
-for1 : Vect n a -> (1 t : T1 s) -> (forall n'. a -> Vect n' a -> F1 s b) -> R1 s (Vect n b)
-for1 x t g = traverse1' g x t
-
+--
+-- ontoVect : (sx : SnocList a) -> Vect n a -> Vect (length sx + n) a
+-- ontoVect [<]       xs = xs
+-- ontoVect (sx :< x) xs =
+--   rewrite plusSuccRightSucc (length sx) n in ontoVect sx (x::xs)
+--
+-- traverse1Vect' :
+--      (sx : SnocList b)
+--   -> (forall n'. a -> Vect n' a -> F1 s b)
+--   -> Vect n a
+--   -> F1 s (Vect (length sx + n) b)
+-- traverse1Vect'           sx f []        t = ontoVect sx [] # t
+-- traverse1Vect' {n = S k} sx f xxs@(x :: xs) t =
+--   let Token.(#) v t1 := f x xxs t
+--    in rewrite sym (plusSuccRightSucc (length sx) k)
+--       in traverse1Vect' (sx :< v) f xs t1
+--
+-- traverse1' :
+--   (forall n'. a -> Vect n' a -> F1 s b)
+--   -> Vect n a
+--   -> F1 s (Vect n b)
+-- traverse1' = traverse1Vect' [<]
+--
+-- forSuf : Applicative f => Vect n a -> (forall m. Vect m a -> f b) -> f (Vect n b)
+-- forSuf [] g = pure []
+-- forSuf xxs@(x :: xs) g = [| g xxs :: forSuf xs g |]
+--
+-- for1 : Vect n a -> (1 t : T1 s) -> (forall n'. a -> Vect n' a -> F1 s b) -> R1 s (Vect n b)
+-- for1 x t g = traverse1' g x t
+--
 -- public export
 -- genMap : (k : Nat) -> (n : Nat) -> Gen MaybeEmpty $ Vect k (Fin n)
 -- genMap k n = run1 $ \t => do

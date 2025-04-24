@@ -624,8 +624,8 @@ buildImage bdata bsect fsinfo node names cmap image = do
 
 
 public export
-genImage : (fuel1 : Fuel) -> (fuel2 : Fuel) -> (fuel3 : Fuel) -> (cfg : NodeCfg) -> (minClust : Nat) -> Gen MaybeEmpty (Buffer, Int)
-genImage fuel1 fuel2 fuel3 (MkNodeCfg clustSize @{clustNZ}) minClust = do
+genImage : (fuel1 : Fuel) -> (fuel2 : Fuel) -> (cfg : NodeCfg) -> (minClust : Nat) -> Gen MaybeEmpty (Buffer, Int)
+genImage fuel1 fuel2 (MkNodeCfg clustSize @{clustNZ}) minClust = do
     (ar@(MkNodeArgs _ tot) ** node) <- trace "generating NodeB..." $ genFilesystemB fuel1 $ MkNodeCfg clustSize
     names <- trace "generating NameTree..." $ genNameTree fuel2 (MkNodeCfg clustSize) ar True True node @{const genBits8} @{const genFilename}
     let tcls : Nat
