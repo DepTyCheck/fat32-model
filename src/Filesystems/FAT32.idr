@@ -224,7 +224,22 @@ boundedRangeLT a b = boundedRange' a b (minus b a)
 
 public export
 boundedRangeLTE : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => List $ Subset Nat (`LTE` b)
-boundedRangeLTE a b= map (bimap id fromLteSucc) $ boundedRange' a (S b) (S $ minus b a) @{lteSuccRight prf}
+boundedRangeLTE a b = map (bimap id fromLteSucc) $ boundedRange' a (S b) (S $ minus b a) @{lteSuccRight prf}
+
+boundedRangeD' : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => (fuel : Nat) -> List (x ** x `LT` b)
+boundedRangeD' a b 0 = []
+boundedRangeD' a b (S k) with (decomposeLte a b prf)
+  boundedRangeD' a b (S k) | (Right peq) = []
+  boundedRangeD' a b (S k) | (Left plt) with (boundedRangeD' (S a) b k)
+    boundedRangeD' a b (S k) | (Left plt) | ps = (a ** plt) :: ps
+
+public export
+boundedRangeDLT : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => List (x ** x `LT` b)
+boundedRangeDLT a b = boundedRangeD' a b (minus b a)
+
+public export
+boundedRangeDLTE : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => List (x ** x `LTE` b)
+boundedRangeDLTE a b = map (bimap id fromLteSucc) $ boundedRangeD' a (S b) (S $ minus b a) @{lteSuccRight prf}
 
 genPaddedName : (padlen : Nat) -> LTE 1 padlen => Gen MaybeEmpty (VectBits8 padlen)
 genPaddedName padlen = oneOf $ choiceMap (relax {ne=False} . alternativesOf . uncurry (genPaddedFilenameVect padlen)) (boundedRangeLTE 1 padlen)

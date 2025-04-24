@@ -21,6 +21,7 @@ depends = deptycheck
         , barbies
         , array
         , algebra
+        , containers
 
 -- modules to install
 modules = Filesystems.FAT32

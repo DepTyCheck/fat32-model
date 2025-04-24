@@ -7,6 +7,6 @@ import public Deriving.DepTyCheck.Gen
 
 %logging "deptycheck.derive" 5
 
-Data.UniqFinVect.genUniqFinVect = deriveGen
+-- Data.UniqFinVect.genUniqFinVect = deriveGen
 
 
