@@ -12,22 +12,11 @@ import Derive.Barbie
 import Control.Barbie
 import public Data.DPair
 import Data.Bits
-import Data.Array.Core
-import Data.Buffer.Core
-import Data.Array.Indexed
+import public Filesystems.FAT32.Utils
 
 %default total
-%language ElabReflection
-
-%hide Data.Array.Index.lsl
 %hide Data.Nat.divCeilNZ
-
-public export
-divCeilNZ : Nat -> (y: Nat) -> (0 _ : IsSucc y) => Nat
-divCeilNZ x y = case (modNatNZ x y %search) of
-  Z   => divNatNZ x y %search
-  S _ => S (divNatNZ x y %search)
-
+%language ElabReflection
 
 namespace Constants
     public export
@@ -210,36 +199,6 @@ genPaddedFilenameVect padlen len prf = rewrite sym $ plusMinusLte len padlen prf
                                    rewrite plusCommutative (minus padlen len) len in
                                    flip (++) (fromVect $ replicate (minus padlen len) $ cast ' ') <$> genValidFilenameChars len
 
--- TODO: erase LTE proofs
-boundedRange' : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => (fuel : Nat) -> List $ Subset Nat (`LT` b)
-boundedRange' a b 0 = []
-boundedRange' a b (S k) with (decomposeLte a b prf)
-  boundedRange' a b (S k) | (Right peq) = []
-  boundedRange' a b (S k) | (Left plt) with (boundedRange' (S a) b k)
-    boundedRange' a b (S k) | (Left plt) | ps = (Element a plt) :: ps
-
-public export
-boundedRangeLT : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => List $ Subset Nat (`LT` b)
-boundedRangeLT a b = boundedRange' a b (minus b a)
-
-public export
-boundedRangeLTE : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => List $ Subset Nat (`LTE` b)
-boundedRangeLTE a b = map (bimap id fromLteSucc) $ boundedRange' a (S b) (S $ minus b a) @{lteSuccRight prf}
-
-boundedRangeD' : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => (fuel : Nat) -> List (x ** x `LT` b)
-boundedRangeD' a b 0 = []
-boundedRangeD' a b (S k) with (decomposeLte a b prf)
-  boundedRangeD' a b (S k) | (Right peq) = []
-  boundedRangeD' a b (S k) | (Left plt) with (boundedRangeD' (S a) b k)
-    boundedRangeD' a b (S k) | (Left plt) | ps = (a ** plt) :: ps
-
-public export
-boundedRangeDLT : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => List (x ** x `LT` b)
-boundedRangeDLT a b = boundedRangeD' a b (minus b a)
-
-public export
-boundedRangeDLTE : (a : Nat) -> (b : Nat) -> (prf : LTE a b) => List (x ** x `LTE` b)
-boundedRangeDLTE a b = map (bimap id fromLteSucc) $ boundedRangeD' a (S b) (S $ minus b a) @{lteSuccRight prf}
 
 genPaddedName : (padlen : Nat) -> LTE 1 padlen => Gen MaybeEmpty (VectBits8 padlen)
 genPaddedName padlen = oneOf $ choiceMap (relax {ne=False} . alternativesOf . uncurry (genPaddedFilenameVect padlen)) (boundedRangeLTE 1 padlen)
@@ -325,12 +284,6 @@ genNameTree : Fuel ->
 %runElab derive "NodeArgs" [Show]
 %runElab deriveIndexed "SnocVectNodeArgs" [Show]
 %runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HSnocVectMaybeNode"]
--- %runElab deriveIndexed "Filesystem" [Show]
-
--- serializeNode : {clustSize : Nat} -> (0 clustNZ : IsSucc clustSize) => (node : Node (MkNodeCfg clustSize) (MkNodeArgs cur tot) True fs) -> NameTree node -> IArray tot (Fin m) -> IBuffer (cur * clustSize)
--- serializeNode (FileB meta x) names cmap = packVect $ padBlob clustSize clustNZ x
--- serializeNode (Dir meta entries) names cmap = ?serializeNode_rhs_2
--- serializeNode (Root entries) names cmap = ?serializeNode_rhs_3
 
 {-
 Boot sector generation strategy:

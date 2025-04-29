@@ -3,21 +3,10 @@ module Data.Monomorphic.Vect
 import public Data.Nat
 import Derive.Prelude
 import Deriving.DepTyCheck.Gen
-import public Data.Buffer.Core
-import public Data.Buffer.Indexed
+import Data.Buffer.Core
+import Data.Buffer.Indexed
 
 %default total
-
--- namespace VectNat
---     public export
---     data VectNat : Nat -> Type where
---         Nil : VectNat 0
---         (::) : Nat -> VectNat n -> VectNat (S n)
---
---     public export
---     sum : VectNat k -> Nat
---     sum [] = 0
---     sum (x :: xs) = x + sum xs
 
 public export %hint
 genBits8 : Gen MaybeEmpty Bits8
@@ -124,6 +113,5 @@ namespace SnocVectBits8
     genSnocVectBits8 (S k) = [| genSnocVectBits8 k :< genBits8 |]
 
 %language ElabReflection
--- %runElab deriveIndexed "VectNat" [Show]
 %runElab deriveIndexed "VectBits8" [Show]
 %runElab deriveIndexed "SnocVectBits8" [Show]
