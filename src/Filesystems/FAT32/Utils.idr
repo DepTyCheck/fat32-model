@@ -86,3 +86,24 @@ divCeilMultLTE a b with (DivisionTheorem a b bnz bnz, boundModNatNZ a b bnz) | (
     divCeilMultLTE a b | (dv, mb) | 0 = rewrite sym dv in reflexive
     divCeilMultLTE a b | (dv, mb) | (S k) = rewrite cong (\x => LTE x $ b + divNatNZ a b bnz * b) dv in plusLteMonotoneRight (divNatNZ a b bnz * b) _ _ $ lteSuccLeft mb
 
+export
+multIsSucc : (a : Nat) -> (b : Nat) -> IsSucc (a * b) -> (IsSucc a, IsSucc b)
+multIsSucc 0 b prf = void $ uninhabited prf
+multIsSucc (S k) 0 prf = void $ uninhabited $ replace {p = IsSucc} (multZeroRightZero k) prf
+multIsSucc (S k) (S j) prf = (ItIsSucc, ItIsSucc)
+
+public export
+isSuccToLTE : IsSucc a -> LTE 1 a
+isSuccToLTE ItIsSucc = LTESucc LTEZero
+
+public export
+divCeilIsSucc : (a : Nat) -> (b : Nat) -> {0 bnz : IsSucc b} -> (0 prf : IsSucc a) => LTE 1 (divCeilNZ a b @{bnz})
+divCeilIsSucc 0 b = void $ uninhabited prf
+divCeilIsSucc (S k) b with (DivisionTheorem (S k) b bnz bnz) | (modNatNZ (S k) b bnz)
+  divCeilIsSucc (S k) b | dv | 0 = isSuccToLTE $ fst $ multIsSucc (divNatNZ (S k) b bnz) b (rewrite sym dv in ItIsSucc)
+  divCeilIsSucc (S k) b | dv | (S j) = isSuccToLTE ItIsSucc
+
+public export
+plusOneRight : (x : Nat) -> S x = x + 1
+plusOneRight x = sym (plusOneSucc x) `trans` plusCommutative 1 x
+

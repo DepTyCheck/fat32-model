@@ -53,7 +53,7 @@ Cfg = Config Prelude.id
 
 defaultCfg : Cfg
 defaultCfg = MkConfig
-    { params   = MkNodeCfg 32
+    { params   = MkNodeCfg 512
     , fuel1    = limit 10
     , fuel2    = limit 10
     -- , fuel3    = limit 10
