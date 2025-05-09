@@ -4,9 +4,6 @@ module Filesystems.FAT32.Pretty
 import Filesystems.FAT32
 import Filesystems.FAT32.Derived.Node
 import Filesystems.FAT32.Derived.NameTree
-import Data.UniqFinVect
-import Data.UniqFinVect.Derived
-import Data.Buffer.Core
 import Data.Array.Core
 import Data.Array.Index
 import Data.Array.Mutable
@@ -21,7 +18,8 @@ import Syntax.PreorderReasoning
 import Syntax.PreorderReasoning.Generic
 import Filesystems.FAT32.Utils
 import Filesystems.FAT32.FSStructs
-import Debug.Trace
+import System.Random.Pure.StdGen
+import System
 
 %default total
 %hide Data.Array.Index.lsl
@@ -259,65 +257,65 @@ buildImage bdata bsect fsinfo node names cmap image = do
     
     lift1 $ icopy pFsinfo 0 (7 * bdata.bytsPerSec) 512 image @{reflexive} @{rewrite bdata.sizePrf in ((plusLteMonotoneRight 512 _ _ (multLteMonotoneLeft 7 7 bdata.bytsPerSec reflexive) `transitive` plusLteMonotoneLeft (7 * bdata.bytsPerSec) 512 bdata.bytsPerSec bdata.sectPrf) `transitive` (eqToLTE (plusCommutative (7 * bdata.bytsPerSec) bdata.bytsPerSec) `transitive` multLteMonotoneLeft 8 bdata.rsvdSecCnt bdata.bytsPerSec bdata.rsvPrf)) `transitive` lteAddRight (bdata.rsvdSecCnt * bdata.bytsPerSec)}
     
-    when bdata.onlyOneFat $ do
-        serializeNode node 0 0 names cmap (bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec)) (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + 8) image @{%search} @{reflexive} @{ do
-            rewrite bdata.csPrf
-            replace {p = \x => LTE x tsz} ((bdata.sizePrf `trans` plusAssociative _ _ _) `trans` cong (\x => (bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + x * bdata.clustSize)) (sym bdata.tclsPrf)) reflexive
-        } @{ CalcSmart $
-            |~ bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + 8 + (tcls * 4)
-            ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + 8 + (bdata.dataClust * 4)
-                ... cong (\x => bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + 8 + (x * 4)) bdata.tclsPrf
-            ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + (8 + bdata.dataClust * 4)
-                ..< plusAssociative _ _ _
-            <~ bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + (bdata.fatSz * bdata.bytsPerSec)
-                ..> plusLteMonotoneLeft _ _ _ (bdataFatPrf bdata)
-            ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (1 + finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)
-                ... eqPrf4 (bdata.rsvdSecCnt * bdata.bytsPerSec) (finToNat bdata.activeFat) (bdata.fatSz * bdata.bytsPerSec)
-            <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec)
-                ..> plusLteMonotoneLeft (bdata.rsvdSecCnt * bdata.bytsPerSec) _ _ (multLteMonotoneLeft (S $ finToNat bdata.activeFat) bdata.numFats (bdata.fatSz * bdata.bytsPerSec) (elemSmallerThanBound bdata.activeFat))
-            <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize
-                ..> lteAddRight (bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec))
-            ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize)
-                ..< plusAssociative _ _ _ 
-            ~~ tsz
-                ..< bdata.sizePrf
-        }
-        lift1 $ icopy fat0 0 (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) 4 @{%search} @{ CalcSmart $
-            |~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) + 4
-            <~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) + (8 + bdata.dataClust * 4)
-                ..> plusLteMonotoneLeft (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) 4 (8 + bdata.dataClust * 4) (lteAddRight 4)
-            <~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) + (bdata.fatSz * bdata.bytsPerSec)
-                ..> plusLteMonotoneLeft _ _ _ (bdataFatPrf bdata)
-            ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (1 + finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)
-                ... eqPrf4 (bdata.rsvdSecCnt * bdata.bytsPerSec) (finToNat bdata.activeFat) (bdata.fatSz * bdata.bytsPerSec)
-            <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec)
-                ..> plusLteMonotoneLeft (bdata.rsvdSecCnt * bdata.bytsPerSec) _ _ (multLteMonotoneLeft (S $ finToNat bdata.activeFat) bdata.numFats (bdata.fatSz * bdata.bytsPerSec) (elemSmallerThanBound bdata.activeFat))
-            <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize
-                ..> lteAddRight (bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec))
-            ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize)
-                ..< plusAssociative _ _ _ 
-            ~~ tsz
-                ..< bdata.sizePrf
-        } image
-        lift1 $ icopy fat1 0 ((bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) + 4) 4 @{%search} @{ CalcSmart $
-            |~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat (bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec))) + 4 + 4
-            ~~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat (bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec))) + 8
-                ..< plusAssociative _ _ _
-            <~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat (bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec))) + (8 + bdata.dataClust * 4)
-                ..> plusLteMonotoneLeft ((bdata.rsvdSecCnt * bdata.bytsPerSec) + (finToNat (bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec))) 8 (8 + bdata.dataClust * 4) (lteAddRight 8)
-            <~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat (bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec))) + (bdata.fatSz * bdata.bytsPerSec)
-                ..> plusLteMonotoneLeft _ _ _ (bdataFatPrf bdata)
-            ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (1 + finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)
-                ... eqPrf4 (bdata.rsvdSecCnt * bdata.bytsPerSec) (finToNat bdata.activeFat) (bdata.fatSz * bdata.bytsPerSec)
-            <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec)
-                ..> plusLteMonotoneLeft (bdata.rsvdSecCnt * bdata.bytsPerSec) _ _ (multLteMonotoneLeft (S $ finToNat bdata.activeFat) bdata.numFats (bdata.fatSz * bdata.bytsPerSec) (elemSmallerThanBound bdata.activeFat))
-            <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize
-                ..> lteAddRight (bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec))
-            ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize)
-                ..< plusAssociative _ _ _ 
-            ~~ tsz
-                ..< bdata.sizePrf
-        } image
+    -- when bdata.onlyOneFat $ do
+    --     serializeNode node 0 0 names cmap (bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec)) (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + 8) image @{%search} @{reflexive} @{ do
+    --         rewrite bdata.csPrf
+    --         replace {p = \x => LTE x tsz} ((bdata.sizePrf `trans` plusAssociative _ _ _) `trans` cong (\x => (bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + x * bdata.clustSize)) (sym bdata.tclsPrf)) reflexive
+    --     } @{ CalcSmart $
+    --         |~ bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + 8 + (tcls * 4)
+    --         ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + 8 + (bdata.dataClust * 4)
+    --             ... cong (\x => bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + 8 + (x * 4)) bdata.tclsPrf
+    --         ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + (8 + bdata.dataClust * 4)
+    --             ..< plusAssociative _ _ _
+    --         <~ bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec) + (bdata.fatSz * bdata.bytsPerSec)
+    --             ..> plusLteMonotoneLeft _ _ _ (bdataFatPrf bdata)
+    --         ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (1 + finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)
+    --             ... eqPrf4 (bdata.rsvdSecCnt * bdata.bytsPerSec) (finToNat bdata.activeFat) (bdata.fatSz * bdata.bytsPerSec)
+    --         <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec)
+    --             ..> plusLteMonotoneLeft (bdata.rsvdSecCnt * bdata.bytsPerSec) _ _ (multLteMonotoneLeft (S $ finToNat bdata.activeFat) bdata.numFats (bdata.fatSz * bdata.bytsPerSec) (elemSmallerThanBound bdata.activeFat))
+    --         <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize
+    --             ..> lteAddRight (bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec))
+    --         ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize)
+    --             ..< plusAssociative _ _ _ 
+    --         ~~ tsz
+    --             ..< bdata.sizePrf
+    --     }
+    --     lift1 $ icopy fat0 0 (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) 4 @{%search} @{ CalcSmart $
+    --         |~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) + 4
+    --         <~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) + (8 + bdata.dataClust * 4)
+    --             ..> plusLteMonotoneLeft (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) 4 (8 + bdata.dataClust * 4) (lteAddRight 4)
+    --         <~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) + (bdata.fatSz * bdata.bytsPerSec)
+    --             ..> plusLteMonotoneLeft _ _ _ (bdataFatPrf bdata)
+    --         ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (1 + finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)
+    --             ... eqPrf4 (bdata.rsvdSecCnt * bdata.bytsPerSec) (finToNat bdata.activeFat) (bdata.fatSz * bdata.bytsPerSec)
+    --         <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec)
+    --             ..> plusLteMonotoneLeft (bdata.rsvdSecCnt * bdata.bytsPerSec) _ _ (multLteMonotoneLeft (S $ finToNat bdata.activeFat) bdata.numFats (bdata.fatSz * bdata.bytsPerSec) (elemSmallerThanBound bdata.activeFat))
+    --         <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize
+    --             ..> lteAddRight (bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec))
+    --         ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize)
+    --             ..< plusAssociative _ _ _ 
+    --         ~~ tsz
+    --             ..< bdata.sizePrf
+    --     } image
+    --     lift1 $ icopy fat1 0 ((bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)) + 4) 4 @{%search} @{ CalcSmart $
+    --         |~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat (bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec))) + 4 + 4
+    --         ~~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat (bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec))) + 8
+    --             ..< plusAssociative _ _ _
+    --         <~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat (bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec))) + (8 + bdata.dataClust * 4)
+    --             ..> plusLteMonotoneLeft ((bdata.rsvdSecCnt * bdata.bytsPerSec) + (finToNat (bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec))) 8 (8 + bdata.dataClust * 4) (lteAddRight 8)
+    --         <~ (bdata.rsvdSecCnt * bdata.bytsPerSec + (finToNat (bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec))) + (bdata.fatSz * bdata.bytsPerSec)
+    --             ..> plusLteMonotoneLeft _ _ _ (bdataFatPrf bdata)
+    --         ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (1 + finToNat bdata.activeFat) * (bdata.fatSz * bdata.bytsPerSec)
+    --             ... eqPrf4 (bdata.rsvdSecCnt * bdata.bytsPerSec) (finToNat bdata.activeFat) (bdata.fatSz * bdata.bytsPerSec)
+    --         <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec)
+    --             ..> plusLteMonotoneLeft (bdata.rsvdSecCnt * bdata.bytsPerSec) _ _ (multLteMonotoneLeft (S $ finToNat bdata.activeFat) bdata.numFats (bdata.fatSz * bdata.bytsPerSec) (elemSmallerThanBound bdata.activeFat))
+    --         <~ bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize
+    --             ..> lteAddRight (bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec))
+    --         ~~ bdata.rsvdSecCnt * bdata.bytsPerSec + (bdata.numFats * (bdata.fatSz * bdata.bytsPerSec) + bdata.dataClust * bdata.clustSize)
+    --             ..< plusAssociative _ _ _ 
+    --         ~~ tsz
+    --             ..< bdata.sizePrf
+    --     } image
     when (not bdata.onlyOneFat) $ do
         serializeNode node 0 0 names cmap (bdata.rsvdSecCnt * bdata.bytsPerSec + bdata.numFats * (bdata.fatSz * bdata.bytsPerSec)) (bdata.rsvdSecCnt * bdata.bytsPerSec + 0 * (bdata.fatSz * bdata.bytsPerSec) + 8) image @{%search} @{reflexive} @{ do
             rewrite bdata.csPrf
@@ -410,11 +408,49 @@ buildImage bdata bsect fsinfo node names cmap image = do
                 }
 
 
+-- public export
+-- genImage : (fuel1 : Fuel) -> (fuel2 : Fuel) -> (cfg : NodeCfg) -> (minClust : Nat) -> Gen MaybeEmpty (Buffer, Int)
+-- genImage fuel1 fuel2 (MkNodeCfg clustSize @{clustNZ}) minClust = do
+--     (ar@(MkNodeArgs _ tot) ** node) <- genFilesystemB fuel1 $ MkNodeCfg clustSize
+--     names <- genNameTree fuel2 (MkNodeCfg clustSize) ar True True node @{const genBits8} @{const genFilename}
+--     let tcls : Nat
+--         tcls = maximum 65525 $ maximum minClust tot
+--     let tclsPrf = maximumRightUpperBound minClust tot `transitive` maximumRightUpperBound 65525 (maximum minClust tot)
+--     let genvect = 
+--             case isItSucc tot of
+--                 (Yes prf) => replace {p = \t => Gen MaybeEmpty (Vect tot (Fin t))} (plusCommutative tot (tcls `minus` tot) `trans` plusMinusLte tot tcls tclsPrf) $ genMap tot (tcls `minus` tot)
+--                 (No contra)    => case tot of
+--                                        0 => pure []
+--                                        (S k) => void $ contra ItIsSucc
+--     cvect <- genvect
+--     let cmap = array cvect
+--     let root = 
+--         case isLT 0 tot of
+--           (Yes prf) => 2 + finToNat (atNat cmap 0 @{prf})
+--           (No _)    => 2
+--     (tsz ** bdata) <- genBootSectorData clustSize tcls root
+--     bsect <- genBootSector bdata
+--     fsinfo <- genFsInfo tcls
+--     pure $ runPure $ do
+--         image <- mbuffer tsz
+--         buildImage bdata bsect fsinfo node names cmap image
+--         pure $ (unsafeFromMBuffer image, cast tsz)
+
 public export
-genImage : (fuel1 : Fuel) -> (fuel2 : Fuel) -> (cfg : NodeCfg) -> (minClust : Nat) -> Gen MaybeEmpty (Buffer, Int)
-genImage fuel1 fuel2 (MkNodeCfg clustSize @{clustNZ}) minClust = do
-    (ar@(MkNodeArgs _ tot) ** node) <- genFilesystemB fuel1 $ MkNodeCfg clustSize
-    names <- genNameTree fuel2 (MkNodeCfg clustSize) ar True True node @{const genBits8} @{const genFilename}
+genImageIO : (seed : Bits64) -> (fuel1 : Fuel) -> (fuel2 : Fuel) -> (cfg : NodeCfg) -> (minClust : Nat) -> Bool -> Bool -> Bool -> IO (Buffer, Int)
+genImageIO seed fuel1 fuel2 (MkNodeCfg clustSize @{clustNZ}) minClust printNode printNodeB printNames = do
+    putStrLn "generating Node..."
+    let (Just (ar@(MkNodeArgs cur tot) ** node)) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genFilesystem fuel1 $ MkNodeCfg clustSize
+        | Nothing => die "failed to generate Node"
+    when printNode $ printLn node
+    putStrLn "generating NodeB..."
+    let (Just nodeb) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ fillBlobs node
+        | Nothing => die "failed to generate NodeB"
+    when printNodeB $ printLn nodeb
+    putStrLn "generating NameTree..."
+    let (Just names) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genNameTree fuel2 (MkNodeCfg clustSize) (MkNodeArgs cur tot) True True nodeb @{const genBits8} @{const genFilename}
+        | Nothing => die "failed to generate NameTree"
+    when printNames $ printLn names
     let tcls : Nat
         tcls = maximum 65525 $ maximum minClust tot
     let tclsPrf = maximumRightUpperBound minClust tot `transitive` maximumRightUpperBound 65525 (maximum minClust tot)
@@ -424,17 +460,26 @@ genImage fuel1 fuel2 (MkNodeCfg clustSize @{clustNZ}) minClust = do
                 (No contra)    => case tot of
                                        0 => pure []
                                        (S k) => void $ contra ItIsSucc
-    cvect <- genvect
+    putStrLn "generating cmap..."
+    let (Just cvect) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genvect
+        | Nothing => die "failed to generate cmap"
     let cmap = array cvect
     let root = 
         case isLT 0 tot of
           (Yes prf) => 2 + finToNat (atNat cmap 0 @{prf})
           (No _)    => 2
-    (tsz ** bdata) <- genBootSectorData clustSize tcls root
-    bsect <- genBootSector bdata
-    fsinfo <- genFsInfo tcls
+    putStrLn "generating bdata..."
+    let (Just (tsz ** bdata)) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genBootSectorData clustSize tcls root
+        | Nothing => die "failed to generate bdata"
+    putStrLn "generating bsect..."
+    let (Just bsect) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genBootSector bdata
+        | Nothing => die "failed to generate bsect"
+    putStrLn "generating fsinfo..."
+    let (Just fsinfo) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genFsInfo tcls
+        | Nothing => die "failed to generate fsinfo"
+    putStrLn "building the image..."
     pure $ runPure $ do
         image <- mbuffer tsz
-        buildImage bdata bsect fsinfo node names cmap image
+        buildImage bdata bsect fsinfo nodeb names cmap image
         pure $ (unsafeFromMBuffer image, cast tsz)
 

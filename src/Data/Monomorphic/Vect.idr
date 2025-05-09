@@ -10,7 +10,8 @@ import Data.Buffer.Indexed
 
 public export %hint
 genBits8 : Gen MaybeEmpty Bits8
-genBits8 = elements' $ the (List Bits8) [0..255]
+-- genBits8 = elements' $ the (List Bits8) [0..255]
+genBits8 = relax chooseAny
 
 namespace VectBits8
     public export

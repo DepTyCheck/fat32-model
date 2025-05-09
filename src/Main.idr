@@ -5,8 +5,7 @@ import Data.Monomorphic.Vect
 import Filesystems.FAT32.Pretty
 import Filesystems.FAT32.Derived.Node
 import Filesystems.FAT32.Derived.NameTree
-import Data.UniqFinVect
-import Data.UniqFinVect.Derived
+import Filesystems.FAT32.FSStructs
 import System.Random.Pure.StdGen
 import System
 import System.GetOpts
@@ -14,38 +13,43 @@ import Derive.Prelude
 import Derive.Barbie
 import Control.Barbie
 import Data.Buffer
+import Data.Buffer.Core
+import Data.Buffer.Indexed
 import System.File.Buffer
 
 %default total
 %cg chez lazy=weakMemo
 %language ElabReflection
 
-
 record Config (m : Type -> Type) where
     constructor MkConfig
-    params   : m NodeCfg
-    fuel1   : m Fuel
-    fuel2    : m Fuel
+    params     : m NodeCfg
+    fuel1      : m Fuel
+    fuel2      : m Fuel
     -- fuel3    : m Fuel
-    seed     : m Bits64
-    minClust : m Nat
-    -- printGen : m Bool
-    output   : m String
-    help     : m Bool
+    seed       : m Bits64
+    minClust   : m Nat
+    printNode  : m Bool
+    printNodeB : m Bool
+    printNames : m Bool
+    output     : m String
+    help       : m Bool
 
 %runElab derive "Config" [Barbie]
 
 emptyCfg : Config Maybe
 emptyCfg = MkConfig
-    { params   = Nothing
-    , fuel1    = Nothing
-    , fuel2    = Nothing
+    { params     = Nothing
+    , fuel1      = Nothing
+    , fuel2      = Nothing
     -- , fuel3    = Nothing
-    , seed     = Nothing
-    , minClust = Nothing
-    -- , printGen = Nothing
-    , output   = Nothing
-    , help     = Nothing
+    , seed       = Nothing
+    , minClust   = Nothing
+    , printNode  = Nothing
+    , printNodeB = Nothing
+    , printNames = Nothing
+    , output     = Nothing
+    , help       = Nothing
     }
 
 Cfg : Type
@@ -53,15 +57,17 @@ Cfg = Config Prelude.id
 
 defaultCfg : Cfg
 defaultCfg = MkConfig
-    { params   = MkNodeCfg 512
-    , fuel1    = limit 10
-    , fuel2    = limit 10
+    { params     = MkNodeCfg 512
+    , fuel1      = limit 10
+    , fuel2      = limit 10
     -- , fuel3    = limit 10
-    , seed     = 1450262
-    , minClust = 0
-    -- , printGen = True
-    , output   = "out.img"
-    , help     = False
+    , seed       = 1450262
+    , minClust   = 0
+    , printNode  = False
+    , printNodeB = False
+    , printNames = False
+    , output     = "out.img"
+    , help       = False
     }
 
 parseNat : String -> Either String Nat
@@ -100,12 +106,15 @@ optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeCfg "<size>") "clust
        , MkOpt ['s'] ["seed"] (ReqArg' parseSeed "<seed>") "seed"
        , MkOpt ['m'] ["minclust"] (ReqArg' parseMinClust "<minclust>") "minimum amount of data clusters"
        -- , MkOpt ['q'] ["quiet", "no-print"] (NoArg $ {printGen := Just False} emptyCfg) "don't print the generated value"
+       , MkOpt ['D'] ["print-node"] (NoArg $ {printNode := Just True} emptyCfg) "print the generated Node"
+       , MkOpt ['B'] ["print-nodeb"] (NoArg $ {printNodeB := Just True} emptyCfg) "print the generated NodeB"
+       , MkOpt ['T'] ["print-names"] (NoArg $ {printNames := Just True} emptyCfg) "print the generated NameTree"
        , MkOpt ['h'] ["help"] (NoArg $ {help := Just True} emptyCfg) "print usage information"
        , MkOpt ['o'] ["output"] (ReqArg' parseOut "<output>") "output image filename"
        ]
 
 
-%runElab deriveParam $ map (\n => PI n allIndices [Show]) ["UniqNames", "NameTree", "MaybeNameTree", "HSnocVectNameTree"]
+
 
 main : IO ()
 main = do
@@ -133,8 +142,9 @@ main = do
     --     | Nothing => die "Failed to generate cmap"
     -- printLn cvect
     -- pure ()
-    let (Just (image, size)) = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genImage cfg.fuel1 cfg.fuel2 cfg.params cfg.minClust
-        | Nothing => die "failed to generate image"
+    -- let (Just (image, size)) = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genImage cfg.fuel1 cfg.fuel2 cfg.params cfg.minClust
+    --     | Nothing => die "failed to generate image"
+    (image, size) <- genImageIO cfg.seed cfg.fuel1 cfg.fuel2 cfg.params cfg.minClust cfg.printNode cfg.printNodeB cfg.printNames 
     Right () <- writeBufferToFile cfg.output image size
         | Left err => die "file error: \{show err}"
     pure ()

@@ -123,9 +123,10 @@ genBootSectorData clustSize dataClust rootClust = do
         numFats = 2
     let fatSz : Nat        
         fatSz = divCeilNZ (8 + dataClust * 4) bytsPerSec 
-    activeFat       <- genFin numFats
-    onlyOneFat      <- elements' $ the (List _) [False, True]
-    -- let onlyOneFat = False
+    -- activeFat       <- genFin numFats
+    -- onlyOneFat      <- elements' $ the (List _) [False, True]
+    let activeFat = 0
+    let onlyOneFat = False
     mediaType       <- elements' $ the (List _) [0xF0, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF]
     let totalSize : Nat
         totalSize = rsvdSecCnt * bytsPerSec + (numFats * (fatSz * bytsPerSec) + dataClust * clustSize)

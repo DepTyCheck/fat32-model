@@ -284,6 +284,7 @@ genNameTree : Fuel ->
 %runElab derive "NodeArgs" [Show]
 %runElab deriveIndexed "SnocVectNodeArgs" [Show]
 %runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HSnocVectMaybeNode"]
+%runElab deriveParam $ map (\n => PI n allIndices [Show]) ["UniqNames", "NameTree", "MaybeNameTree", "HSnocVectNameTree"]
 
 {-
 Boot sector generation strategy:
