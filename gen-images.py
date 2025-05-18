@@ -8,6 +8,7 @@ from pathlib import PosixPath
 from random import choice, randint
 
 CLUSTS = [512, 1024, 2048, 4096]
+FS = "vfat"
 
 
 async def gen(k, path, seed=None, fuel1=None, fuel2=None, clust=None):
@@ -21,16 +22,14 @@ async def gen(k, path, seed=None, fuel1=None, fuel2=None, clust=None):
         clust = choice(CLUSTS)
 
     imgpath = PosixPath(path) / f"image_{k:03}.img"
-    syzpath = PosixPath(path) / "syz" / f"syz_mount_image_msdos_idris_{k:03}"
+    syzpath = PosixPath(path) / "syz" / f"syz_mount_image_{FS}_idris_{k:03}"
 
     print(
         f"generating #{k} (seed={seed}, fuel1={fuel1}, fuel2={fuel2}, clsize={clust})..."
     )
     proc = await asyncio.create_subprocess_exec(
         "unbuffer",
-        "pack",
-        "run",
-        "fat32-model",
+        "build/exec/fat32-model",
         "-s",
         str(seed),
         "-1",
@@ -45,7 +44,7 @@ async def gen(k, path, seed=None, fuel1=None, fuel2=None, clust=None):
         stderr=subprocess.STDOUT,
     )
     while line := await proc.stdout.readline():
-        print(f"[#{k:03}] {line.decode()}", end='')
+        print(f"[#{k:03}] {line.decode()}", end="")
     await proc.wait()
     if proc.returncode != 0:
         print(f"task #{k} failed with exit code {proc.returncode}")
@@ -59,7 +58,7 @@ async def gen(k, path, seed=None, fuel1=None, fuel2=None, clust=None):
             f"# image_{k:03}, seed={seed}, fuel1={fuel1}, fuel2={fuel2}, clsize={clust}\n\n"
         )
         syz.write(
-            f"syz_mount_image$msdos(&AUTO='msdos\\x00', &AUTO='./file0\\x00', 0x0, &AUTO, 0x1, AUTO, &AUTO=\""
+            f"syz_mount_image${FS}(&AUTO='{FS}\\x00', &AUTO='./file0\\x00', 0x0, &AUTO, 0x1, AUTO, &AUTO=\""
         )
         syz.write(cvt)
         syz.write('")\n')
