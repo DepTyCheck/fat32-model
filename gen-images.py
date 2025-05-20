@@ -58,7 +58,7 @@ async def gen(k, path, seed=None, fuel1=None, fuel2=None, clust=None):
             f"# image_{k:03}, seed={seed}, fuel1={fuel1}, fuel2={fuel2}, clsize={clust}\n\n"
         )
         syz.write(
-            f"syz_mount_image${FS}(&AUTO='{FS}\\x00', &AUTO='./file0\\x00', 0x0, &AUTO, 0x1, AUTO, &AUTO=\""
+            f"syz_mount_image${FS}(&AUTO='{FS}\\x00', &AUTO='./file0\\x00', 0x0, &AUTO, 0x1, AUTO, &AUTO=\"$"
         )
         syz.write(cvt)
         syz.write('")\n')
