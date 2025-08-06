@@ -74,7 +74,7 @@ parseNat : String -> Either String Nat
 parseNat = (maybeToEither "not a natural number") . parsePositive
 
 parseFuel1 : String -> Either String $ Config Maybe
-parseFuel1 s = pure $ {fuel1 := Just $ limit !(parseNat s)} emptyCfg
+parseFuel1 s = pure $ {fuel1 := Just $ limit !(parseNat s), fuel2 := Just $ limit !(parseNat s)} emptyCfg
 
 parseFuel2 : String -> Either String $ Config Maybe
 parseFuel2 s = pure $ {fuel2 := Just $ limit !(parseNat s)} emptyCfg
