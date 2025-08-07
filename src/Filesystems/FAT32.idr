@@ -200,12 +200,17 @@ genPaddedFilenameVect padlen len prf = rewrite sym $ plusMinusLte len padlen prf
                                    flip (++) (fromVect $ replicate (minus padlen len) $ cast ' ') <$> genValidFilenameChars len
 
 
-genPaddedName : (padlen : Nat) -> LTE 1 padlen => Gen MaybeEmpty (VectBits8 padlen)
-genPaddedName padlen = oneOf $ choiceMap (relax {ne=False} . alternativesOf . uncurry (genPaddedFilenameVect padlen)) (boundedRangeLTE 1 padlen)
+genPaddedName' : (padlen : Nat) -> LTE 1 padlen => Gen MaybeEmpty (VectBits8 padlen)
+genPaddedName' padlen = oneOf $ choiceMap (relax {ne=False} . alternativesOf . uncurry (genPaddedFilenameVect padlen)) (boundedRangeLTE 1 padlen)
+
+genPaddedName : (lo : Nat) -> (hi : Nat) -> LTE lo hi => Gen MaybeEmpty (VectBits8 hi)
+genPaddedName lo hi = do
+    Element clen prf <- elements $ fromList $ boundedRangeLTE lo hi
+    genPaddedFilenameVect hi clen prf
 
 public export
 genFilename : Gen MaybeEmpty Filename
-genFilename = pure $ MkFilename $ !(genPaddedName FilenameLengthName) ++ !(genPaddedName FilenameLengthExt)
+genFilename = pure $ MkFilename $ !(genPaddedName 1 FilenameLengthName) ++ !(genPaddedName 0 FilenameLengthExt)
 
 namespace NameTree
     public export
@@ -215,7 +220,7 @@ namespace NameTree
     data MaybeNameTree : MaybeNode cfg ar wb fs -> Type
 
     public export
-    data UniqNames : HSnocVectMaybeNode cfg k ars wb False -> Type
+    data UniqNames : Nat -> Type
 
     public export
     data HSnocVectNameTree : HSnocVectMaybeNode cfg k ars True False -> Type where
@@ -223,7 +228,7 @@ namespace NameTree
         (:<) : HSnocVectNameTree nodes -> MaybeNameTree node -> HSnocVectNameTree (nodes :< node)
 
     public export
-    data NameIsNew : (nodes : HSnocVectMaybeNode cfg k ars True False) -> UniqNames nodes -> Filename -> Type
+    data NameIsNew : (k : Nat) -> UniqNames k -> Filename -> Type
 
     data NameTree : Node cfg ar wb fs -> Type where
         File : {0 clustSize : Nat} ->
@@ -240,31 +245,29 @@ namespace NameTree
               {0 k : Nat} ->
               {0 ars : SnocVectNodeArgs k} ->
               {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True False} ->
-              UniqNames nodes -> HSnocVectNameTree nodes -> NameTree $ Dir @{clustNZ} meta nodes
+              UniqNames k -> HSnocVectNameTree nodes -> NameTree $ Dir @{clustNZ} meta nodes
         Root : {0 clustSize : Nat} ->
                {0 clustNZ : IsSucc clustSize} ->
                {0 k : Nat} ->
                {0 ars : SnocVectNodeArgs k} ->
                {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True False} ->
-               UniqNames nodes -> HSnocVectNameTree nodes -> NameTree $ Root @{clustNZ} nodes
+               UniqNames k -> HSnocVectNameTree nodes -> NameTree $ Root @{clustNZ} nodes
 
     data MaybeNameTree : MaybeNode cfg ar wb fs -> Type where
         Nothing : MaybeNameTree Nothing
         Just : NameTree node -> MaybeNameTree $ Just node
 
-    data UniqNames : HSnocVectMaybeNode cfg k ars wb False -> Type where
-        Empty : UniqNames [<]
-        NewName : (ff : UniqNames nodes) => (f : Filename) -> (0 _ : NameIsNew nodes ff f) => UniqNames (nodes :< node)
+    data UniqNames : Nat -> Type where
+        Empty : UniqNames Z
+        NewName : (ff : UniqNames k) => (f : Filename) -> (0 _ : NameIsNew k ff f) => UniqNames (S k)
 
-    data NameIsNew : (nodes : HSnocVectMaybeNode cfg k ars True False) -> UniqNames nodes -> Filename -> Type where
-        E : NameIsNew [<] Empty f
+    data NameIsNew : (k : Nat) -> UniqNames k -> Filename -> Type where
+        E : NameIsNew Z Empty f
         N : (0 _ : So $ x /= f) ->
-            {0 ars : SnocVectNodeArgs k} ->
-            {0 nodes : HSnocVectMaybeNode cfg k ars True False} ->
-            {0 ff : UniqNames nodes} ->
-            NameIsNew nodes ff x {k} {ars} ->
-            {0 sub : NameIsNew nodes ff f {ars}} ->
-            NameIsNew (nodes :< node) (NewName @{ff} f @{sub}) x
+            {0 ff : UniqNames k} ->
+            NameIsNew k ff x ->
+            {0 sub : NameIsNew k ff f} ->
+            NameIsNew (S k) (NewName @{ff} f @{sub}) x
 
 public export
 genNameTree : Fuel ->

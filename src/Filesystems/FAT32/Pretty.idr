@@ -145,7 +145,7 @@ writeBlob clustSize' blob currClust cmap dataOffset fatOffset image = do
 mapNodesAndNamesToDirents : {clustSize : Nat} ->
            (0 clustNZ : IsSucc clustSize) =>
            (nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True False) ->
-           (names : UniqNames nodes) ->
+           (names : UniqNames k) ->
            (cmap : IArray cls (Fin tcls)) ->
            (currClust : Nat) ->
            (0 clsBounds : LTE (currClust + totsum ars) cls) =>
