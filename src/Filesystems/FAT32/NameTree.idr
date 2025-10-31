@@ -64,6 +64,32 @@ namespace NameTree
             NameIsNew (S k) (NewName @{ff} f @{sub}) x
 
 public export
+data Filename : Type where
+    MkFilename : VectBits8 FilenameLength -> Filename
+%runElab derive "Filename" [Show, Eq]
+
+genValidFilenameChar : Gen MaybeEmpty Bits8
+genValidFilenameChar = elements' $ map cast $ the (List Char) $ ['A'..'Z'] ++ ['0'..'9'] ++ unpack "!#$%&'()-@^_`{}~"
+
+genValidFilenameChars : (len : Nat) -> Gen MaybeEmpty (VectBits8 len)
+genValidFilenameChars Z = pure []
+genValidFilenameChars (S k) = [| genValidFilenameChar :: genValidFilenameChars k |]
+
+genPaddedFilenameVect : (padlen : Nat) -> (len : Nat) -> (0 prf : LTE len padlen) -> Gen MaybeEmpty (VectBits8 padlen)
+genPaddedFilenameVect padlen len prf = rewrite sym $ plusMinusLte len padlen prf in
+                                   rewrite plusCommutative (minus padlen len) len in
+                                   flip (++) (fromVect $ replicate (minus padlen len) $ cast ' ') <$> genValidFilenameChars len
+
+genPaddedName : (lo : Nat) -> (hi : Nat) -> LTE lo hi => Gen MaybeEmpty (VectBits8 hi)
+genPaddedName lo hi = do
+    Element clen prf <- elements $ fromList $ boundedRangeLTE lo hi
+    genPaddedFilenameVect hi clen prf
+
+public export
+genFilename : Gen MaybeEmpty Filename
+genFilename = pure $ MkFilename $ !(genPaddedName 1 FilenameLengthName) ++ !(genPaddedName 0 FilenameLengthExt)
+
+public export
 genNameTree : Fuel ->
               (Fuel -> Gen MaybeEmpty Bits8) =>
               (Fuel -> Gen MaybeEmpty Filename) =>

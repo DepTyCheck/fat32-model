@@ -52,22 +52,22 @@ record Metadata where
 public export
 record NodeArgs where
     constructor MkNodeArgs
-    curS : Nat
-    totS : Nat
+    cur : Nat
+    tot : Nat
     {auto 0 curTotLTE : LTE curS totS}
 
 namespace Node
     public export
-    data Node : NodeCfg -> NodeArgs -> (wb : Bool) -> (fs : Bool) -> Type
+    data Node : NodeCfg -> (wb : Bool) -> (fs : Bool) -> Type
 
 namespace MaybeNode
     public export
-    data MaybeNode : NodeCfg -> NodeArgs -> Bool -> Bool -> Type where
-        Nothing : MaybeNode cfg ar wb fs
-        Just : Node cfg ar wb fs -> MaybeNode cfg ar wb fs
+    data MaybeNode : NodeCfg -> Bool -> Bool -> Type where
+        Nothing : MaybeNode cfg wb fs
+        Just : Node cfg wb fs -> MaybeNode cfg wb fs
 
     public export
-    maybe : b -> MaybeNode cfg ar wb fs -> (Node cfg ar wb fs -> b) -> b
+    maybe : b -> MaybeNode cfg wb fs -> (Node cfg wb fs -> b) -> b
     maybe x Nothing f = x
     maybe x (Just y) f = f y
     
@@ -88,114 +88,101 @@ namespace SnocVectNodeArgs
 
 namespace HSnocVectMaybeNode
     public export
-    data HSnocVectMaybeNode : NodeCfg -> (k : Nat) -> SnocVectNodeArgs k -> Bool -> Bool -> Type where
-        Lin : HSnocVectMaybeNode cfg 0 [<] wb fs
-        (:<) : {ar : NodeArgs} ->
-               HSnocVectMaybeNode cfg k ars wb fs ->
-               MaybeNode cfg ar wb fs ->
-               HSnocVectMaybeNode cfg (S k) (ars :< ar) wb fs
+    data HSnocVectMaybeNode : NodeCfg -> (k : Nat) -> Bool -> Bool -> Type where
+        Lin : HSnocVectMaybeNode cfg 0 wb fs
+        (:<) : HSnocVectMaybeNode cfg k wb fs ->
+               MaybeNode cfg wb fs ->
+               HSnocVectMaybeNode cfg (S k) wb fs
 
     public export
     traverse' : Applicative f =>
                 (
-                    {0 ar : NodeArgs} ->
-                    MaybeNode cfg ar wb1 fs1 ->
-                    f (MaybeNode cfg ar wb2 fs2)
+                    MaybeNode cfg wb1 fs1 ->
+                    f (MaybeNode cfg wb2 fs2)
                 ) ->
-                HSnocVectMaybeNode cfg k ars wb1 fs1 ->
-                f (HSnocVectMaybeNode cfg k ars wb2 fs2)
+                HSnocVectMaybeNode cfg k wb1 fs1 ->
+                f (HSnocVectMaybeNode cfg k wb2 fs2)
     traverse' g [<] = pure [<]
     traverse' g (xs :< x) = [| traverse' g xs :< g x |]
+    
+    public export
+    totsum : HSnocVectMaybeNode cfg k wb fs -> Nat
+    totsum [<] = 0
+    totsum (sx :< x) = ?ahghioh
+
+    public export
+    totsumLTE : {tot : Nat} -> {0 ctprf : LTE cur tot} -> LTE tot $ totsum $ ars :< MkNodeArgs cur tot @{ctprf}
+    totsumLTE = lteAddRight tot
 
 -- TODO: Add upper bound of 268'435'445 clusters
 namespace Node
     public export
-    data Node : NodeCfg -> NodeArgs -> Bool -> Bool -> Type where
+    data Node : NodeCfg -> Bool -> Bool -> Type where
         File : (0 clustNZ : IsSucc clustSize) =>
+               (ar : NodeArgs) ->
                (meta : Metadata) ->
                {k : Nat} ->
-               Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize) @{Relation.reflexive}) False False
+               {0 arp : ar = (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize) @{Relation.reflexive})} ->
+               Node (MkNodeCfg clustSize) False False
         FileB : (0 clustNZ : IsSucc clustSize) =>
+                (ar : NodeArgs) ->
                 (meta : Metadata) ->
                 {k : Nat} ->
                 SnocVectBits8 k ->
-                Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize) @{Relation.reflexive}) True False
+                {0 arp : ar = (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize) @{Relation.reflexive})} ->
+                Node (MkNodeCfg clustSize) True False
         Dir : forall clustSize.
               (0 clustNZ : IsSucc clustSize) =>
+              (ar : NodeArgs) ->
               (meta : Metadata) ->
               {k : Nat} ->
-              {ars : SnocVectNodeArgs k} ->
-              (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb False) ->
-              Node (MkNodeCfg clustSize) (
+              (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k wb False) ->
+              {0 arp : ar = (
                   let cur' = divCeilNZ (DirentSize * (2 + k)) clustSize
-                  in MkNodeArgs cur' (cur' + totsum ars) @{lteAddRight cur' {m = totsum ars}}
-              ) wb False
+                  in MkNodeArgs cur' (cur' + totsum entries) @{lteAddRight cur' {m = totsum entries}}
+              )} ->
+              Node (MkNodeCfg clustSize) wb False
         Root : forall clustSize.
                (0 clustNZ : IsSucc clustSize) =>
+               (ar : NodeArgs) ->
                {k : Nat} ->
-               {ars : SnocVectNodeArgs k} ->
-               (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb False) ->
-               Node (MkNodeCfg clustSize) (
+               (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k wb False) ->
+               {0 arp : ar = (
                    let cur' = divCeilNZ (DirentSize * k) clustSize
-                   in MkNodeArgs cur' (cur' + totsum ars) @{lteAddRight cur' {m = totsum ars}}
-               ) wb True
+                   in MkNodeArgs cur' (cur' + totsum entries) @{lteAddRight cur' {m = totsum entries}}
+                )} ->
+               Node (MkNodeCfg clustSize) wb True
 
 
 public export
-Filesystem : NodeCfg -> NodeArgs -> Type
-Filesystem cfg ar = Node cfg ar False True
+Filesystem : NodeCfg -> Type
+Filesystem cfg = Node cfg False True
 
 public export
-FilesystemB : NodeCfg -> NodeArgs -> Type
-FilesystemB cfg ar = Node cfg ar True True
+FilesystemB : NodeCfg -> Type
+FilesystemB cfg = Node cfg True True
 
 public export
-genNode : Fuel -> (Fuel -> Gen MaybeEmpty Bits8) => (cfg : NodeCfg) -> (withBlob : Bool) -> (fs : Bool) -> Gen MaybeEmpty (ar ** Node cfg ar withBlob fs)
+genNode : Fuel -> (Fuel -> Gen MaybeEmpty Bits8) => (cfg : NodeCfg) -> (withBlob : Bool) -> (fs : Bool) -> Gen MaybeEmpty (Node cfg withBlob fs)
 
 public export
-genFilesystem : Fuel -> (cfg : NodeCfg) -> Gen MaybeEmpty (ar ** Filesystem cfg ar)
+genFilesystem : Fuel -> (cfg : NodeCfg) -> Gen MaybeEmpty (Filesystem cfg)
 genFilesystem fuel cfg = genNode fuel cfg False True
 
-fillBlobs' : MaybeNode cfg ar False False -> Gen MaybeEmpty $ MaybeNode cfg ar True False
+fillBlobs' : MaybeNode cfg False False -> Gen MaybeEmpty $ MaybeNode cfg True False
 fillBlobs' Nothing = pure Nothing
-fillBlobs' (Just $ Dir meta entries) = Just <$> Dir meta <$> assert_total (traverse' fillBlobs' entries)
-fillBlobs' (Just $ File meta {k}) = Just <$> FileB meta <$> genSnocVectBits8 k
+fillBlobs' (Just $ Dir ar meta entries) = Just <$> (Dir ar meta) <$> assert_total (traverse' fillBlobs' entries)
+fillBlobs' (Just $ File ar meta {k}) = Just <$> FileB ar meta <$> genSnocVectBits8 k
 
-fillBlobs : Node cfg ar False True -> Gen MaybeEmpty $ Node cfg ar True True
-fillBlobs (Root entries) = Root <$> (traverse' fillBlobs' entries)
+fillBlobs : Node cfg False True -> Gen MaybeEmpty $ Node cfg True True
+fillBlobs (Root ar entries) = Root ar <$> (traverse' fillBlobs' entries)
 
 public export
-genFilesystemB : Fuel -> (cfg : NodeCfg) -> Gen MaybeEmpty (ar ** FilesystemB cfg ar)
+genFilesystemB : Fuel -> (cfg : NodeCfg) -> Gen MaybeEmpty (FilesystemB cfg)
 genFilesystemB fuel cfg = do
-    (ar ** fsr) <- genFilesystem fuel cfg
-    fsb <- fillBlobs fsr
-    pure (ar ** fsb)
+    fsr <- genFilesystem fuel cfg
+    fillBlobs fsr
 
-public export
-data Filename : Type where
-    MkFilename : VectBits8 FilenameLength -> Filename
-%runElab derive "Filename" [Show, Eq]
-
-genValidFilenameChar : Gen MaybeEmpty Bits8
-genValidFilenameChar = elements' $ map cast $ the (List Char) $ ['A'..'Z'] ++ ['0'..'9'] ++ unpack "!#$%&'()-@^_`{}~"
-
-genValidFilenameChars : (len : Nat) -> Gen MaybeEmpty (VectBits8 len)
-genValidFilenameChars Z = pure []
-genValidFilenameChars (S k) = [| genValidFilenameChar :: genValidFilenameChars k |]
-
-genPaddedFilenameVect : (padlen : Nat) -> (len : Nat) -> (0 prf : LTE len padlen) -> Gen MaybeEmpty (VectBits8 padlen)
-genPaddedFilenameVect padlen len prf = rewrite sym $ plusMinusLte len padlen prf in
-                                   rewrite plusCommutative (minus padlen len) len in
-                                   flip (++) (fromVect $ replicate (minus padlen len) $ cast ' ') <$> genValidFilenameChars len
-
-genPaddedName : (lo : Nat) -> (hi : Nat) -> LTE lo hi => Gen MaybeEmpty (VectBits8 hi)
-genPaddedName lo hi = do
-    Element clen prf <- elements $ fromList $ boundedRangeLTE lo hi
-    genPaddedFilenameVect hi clen prf
-
-public export
-genFilename : Gen MaybeEmpty Filename
-genFilename = pure $ MkFilename $ !(genPaddedName 1 FilenameLengthName) ++ !(genPaddedName 0 FilenameLengthExt)
 
 
 %runElab deriveIndexed "IsSucc" [Show]
