@@ -7,6 +7,7 @@ import Data.Nat.Order.Properties
 import Data.Nat.Division
 
 %default total
+%prefix_record_projections off
 %ambiguity_depth 5
 
 export

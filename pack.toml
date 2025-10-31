@@ -1,3 +1,6 @@
+[install]
+whitelist = ["fat32-model"]
+
 [custom.all.fat32-model]
 type = "local"
 path = "."

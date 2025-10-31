@@ -2,7 +2,7 @@ module Main
 
 import Data.Nat
 import Data.Monomorphic.Vect
-import Filesystems.FAT32.Pretty
+import Filesystems.FAT32.Image
 import Filesystems.FAT32.Derived.Node
 import Filesystems.FAT32.Derived.NameTree
 import Filesystems.FAT32.FSStructs

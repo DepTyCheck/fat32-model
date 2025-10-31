@@ -11,6 +11,7 @@ import Data.Array.Core
 import Data.Array.Mutable
 
 %default total
+%prefix_record_projections off
 %hide Data.Array.Index.lsl
 %hide Data.Array.Index.refl
 %hide Data.Nat.divCeilNZ

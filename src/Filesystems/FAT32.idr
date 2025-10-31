@@ -8,8 +8,6 @@ import public Data.Monomorphic.Vect
 import public Data.Fuel
 import public Deriving.DepTyCheck.Gen
 import public Derive.Prelude
-import Derive.Barbie
-import Control.Barbie
 import public Data.DPair
 import Data.Bits
 import public Filesystems.FAT32.Utils
@@ -17,6 +15,7 @@ import public Filesystems.FAT32.Utils
 %default total
 %hide Data.Nat.divCeilNZ
 %language ElabReflection
+%prefix_record_projections off
 
 namespace Constants
     public export
@@ -67,6 +66,11 @@ namespace MaybeNode
         Nothing : MaybeNode cfg ar wb fs
         Just : Node cfg ar wb fs -> MaybeNode cfg ar wb fs
 
+    public export
+    maybe : b -> MaybeNode cfg ar wb fs -> (Node cfg ar wb fs -> b) -> b
+    maybe x Nothing f = x
+    maybe x (Just y) f = f y
+    
 namespace SnocVectNodeArgs
     public export
     data SnocVectNodeArgs : Nat -> Type where
@@ -90,11 +94,6 @@ namespace HSnocVectMaybeNode
                HSnocVectMaybeNode cfg k ars wb fs ->
                MaybeNode cfg ar wb fs ->
                HSnocVectMaybeNode cfg (S k) (ars :< ar) wb fs
-
-    public export
-    data IndexIn : HSnocVectMaybeNode cfg k ars wb fs -> Type where
-        Here : IndexIn (xs :< x)
-        There : IndexIn xs -> IndexIn (xs :< x)
 
     public export
     traverse' : Applicative f =>
@@ -141,16 +140,6 @@ namespace Node
                    in MkNodeArgs cur' (cur' + totsum ars) @{lteAddRight cur' {m = totsum ars}}
                ) wb True
 
-namespace MaybeNode
-    public export
-    data IndexIn : MaybeNode cfg ar wb fs -> Type where
-        Here : IndexIn $ Just node
-        There : IndexIn {cfg = MkNodeCfg clustSize @{clustNZ}} xs -> IndexIn $ Just $ Dir @{clustNZ} meta xs
-
-    public export
-    maybe : b -> MaybeNode cfg ar wb fs -> (Node cfg ar wb fs -> b) -> b
-    maybe x Nothing f = x
-    maybe x (Just y) f = f y
 
 public export
 Filesystem : NodeCfg -> NodeArgs -> Type
@@ -199,10 +188,6 @@ genPaddedFilenameVect padlen len prf = rewrite sym $ plusMinusLte len padlen prf
                                    rewrite plusCommutative (minus padlen len) len in
                                    flip (++) (fromVect $ replicate (minus padlen len) $ cast ' ') <$> genValidFilenameChars len
 
-
-genPaddedName' : (padlen : Nat) -> LTE 1 padlen => Gen MaybeEmpty (VectBits8 padlen)
-genPaddedName' padlen = oneOf $ choiceMap (relax {ne=False} . alternativesOf . uncurry (genPaddedFilenameVect padlen)) (boundedRangeLTE 1 padlen)
-
 genPaddedName : (lo : Nat) -> (hi : Nat) -> LTE lo hi => Gen MaybeEmpty (VectBits8 hi)
 genPaddedName lo hi = do
     Element clen prf <- elements $ fromList $ boundedRangeLTE lo hi
@@ -212,74 +197,6 @@ public export
 genFilename : Gen MaybeEmpty Filename
 genFilename = pure $ MkFilename $ !(genPaddedName 1 FilenameLengthName) ++ !(genPaddedName 0 FilenameLengthExt)
 
-namespace NameTree
-    public export
-    data NameTree : Node cfg ar wb fs -> Type
-    
-    public export
-    data MaybeNameTree : MaybeNode cfg ar wb fs -> Type
-
-    public export
-    data UniqNames : Nat -> Type
-
-    public export
-    data HSnocVectNameTree : HSnocVectMaybeNode cfg k ars True False -> Type where
-        Lin : HSnocVectNameTree [<]
-        (:<) : HSnocVectNameTree nodes -> MaybeNameTree node -> HSnocVectNameTree (nodes :< node)
-
-    public export
-    data NameIsNew : (k : Nat) -> UniqNames k -> Filename -> Type
-
-    data NameTree : Node cfg ar wb fs -> Type where
-        File : {0 clustSize : Nat} ->
-               {0 clustNZ : IsSucc clustSize} ->
-               {0 k : Nat} ->
-               NameTree $ File @{clustNZ} meta {k}
-        FileB : {0 clustSize : Nat} ->
-                {0 clustNZ : IsSucc clustSize} ->
-                {0 k : Nat} ->
-                {0 blob : SnocVectBits8 k} ->
-                NameTree $ FileB @{clustNZ} meta blob {k}
-        Dir : {0 clustSize : Nat} ->
-              {0 clustNZ : IsSucc clustSize} ->
-              {0 k : Nat} ->
-              {0 ars : SnocVectNodeArgs k} ->
-              {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True False} ->
-              UniqNames k -> HSnocVectNameTree nodes -> NameTree $ Dir @{clustNZ} meta nodes
-        Root : {0 clustSize : Nat} ->
-               {0 clustNZ : IsSucc clustSize} ->
-               {0 k : Nat} ->
-               {0 ars : SnocVectNodeArgs k} ->
-               {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True False} ->
-               UniqNames k -> HSnocVectNameTree nodes -> NameTree $ Root @{clustNZ} nodes
-
-    data MaybeNameTree : MaybeNode cfg ar wb fs -> Type where
-        Nothing : MaybeNameTree Nothing
-        Just : NameTree node -> MaybeNameTree $ Just node
-
-    data UniqNames : Nat -> Type where
-        Empty : UniqNames Z
-        NewName : (ff : UniqNames k) => (f : Filename) -> (0 _ : NameIsNew k ff f) => UniqNames (S k)
-
-    data NameIsNew : (k : Nat) -> UniqNames k -> Filename -> Type where
-        E : NameIsNew Z Empty f
-        N : (0 _ : So $ x /= f) ->
-            {0 ff : UniqNames k} ->
-            NameIsNew k ff x ->
-            {0 sub : NameIsNew k ff f} ->
-            NameIsNew (S k) (NewName @{ff} f @{sub}) x
-
-public export
-genNameTree : Fuel ->
-              (Fuel -> Gen MaybeEmpty Bits8) =>
-              (Fuel -> Gen MaybeEmpty Filename) =>
-              (cfg : NodeCfg) ->
-              (ar : NodeArgs) ->
-              (wb : Bool) ->
-              (fs : Bool) ->
-              (node : Node cfg ar wb fs) ->
-              Gen MaybeEmpty $ NameTree node
-
 
 %runElab deriveIndexed "IsSucc" [Show]
 %runElab derive "NodeCfg" [Show]
@@ -287,7 +204,6 @@ genNameTree : Fuel ->
 %runElab derive "NodeArgs" [Show]
 %runElab deriveIndexed "SnocVectNodeArgs" [Show]
 %runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HSnocVectMaybeNode"]
-%runElab deriveParam $ map (\n => PI n allIndices [Show]) ["UniqNames", "NameTree", "MaybeNameTree", "HSnocVectNameTree"]
 
 {-
 Boot sector generation strategy:

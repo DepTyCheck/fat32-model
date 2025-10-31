@@ -25,7 +25,7 @@ depends = deptycheck
 
 -- modules to install
 modules = Filesystems.FAT32
-        , Filesystems.FAT32.Pretty
+        , Filesystems.FAT32.Image
         , Filesystems.FAT32.Derived.Node
         , Filesystems.FAT32.Derived.NameTree
         , Data.Monomorphic.Vect
@@ -41,7 +41,7 @@ builddir = "build"
 -- outputdir =
 
 -- script to run before building
--- prebuild =
+prebuild = "sh .derive-in-parallel"
 
 -- script to run after building
 -- postbuild =

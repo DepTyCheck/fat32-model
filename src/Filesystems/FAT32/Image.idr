@@ -1,7 +1,8 @@
-module Filesystems.FAT32.Pretty
+module Filesystems.FAT32.Image
 
 
 import Filesystems.FAT32
+import Filesystems.FAT32.NameTree
 import Filesystems.FAT32.Derived.Node
 import Filesystems.FAT32.Derived.NameTree
 import Data.Array.Core
@@ -22,6 +23,7 @@ import System.Random.Pure.StdGen
 import System
 
 %default total
+%prefix_record_projections off
 %hide Data.Array.Index.lsl
 %hide Data.Array.Index.refl
 
