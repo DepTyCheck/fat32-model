@@ -17,7 +17,7 @@ namespace NameTree
     data UniqNames : Nat -> Type
 
     public export
-    data HSnocVectNameTree : HSnocVectMaybeNode cfg k ars True False -> Type where
+    data HSnocVectNameTree : HSnocVectMaybeNode cfg k ars True -> Type where
         Lin : HSnocVectNameTree [<]
         (:<) : HSnocVectNameTree nodes -> MaybeNameTree node -> HSnocVectNameTree (nodes :< node)
 
@@ -38,13 +38,13 @@ namespace NameTree
               {0 clustNZ : IsSucc clustSize} ->
               {0 k : Nat} ->
               {0 ars : SnocVectNodeArgs k} ->
-              {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True False} ->
+              {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True} ->
               UniqNames k -> HSnocVectNameTree nodes -> NameTree $ Dir @{clustNZ} meta nodes
         Root : {0 clustSize : Nat} ->
                {0 clustNZ : IsSucc clustSize} ->
                {0 k : Nat} ->
                {0 ars : SnocVectNodeArgs k} ->
-               {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True False} ->
+               {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True} ->
                UniqNames k -> HSnocVectNameTree nodes -> NameTree $ Root @{clustNZ} nodes
 
     data MaybeNameTree : MaybeNode cfg ar wb fs -> Type where

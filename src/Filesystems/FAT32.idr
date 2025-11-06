@@ -88,22 +88,22 @@ namespace SnocVectNodeArgs
 
 namespace HSnocVectMaybeNode
     public export
-    data HSnocVectMaybeNode : NodeCfg -> (k : Nat) -> SnocVectNodeArgs k -> Bool -> Bool -> Type where
-        Lin : HSnocVectMaybeNode cfg 0 [<] wb fs
+    data HSnocVectMaybeNode : NodeCfg -> (k : Nat) -> SnocVectNodeArgs k -> Bool -> Type where
+        Lin : HSnocVectMaybeNode cfg 0 [<] wb
         (:<) : {ar : NodeArgs} ->
-               HSnocVectMaybeNode cfg k ars wb fs ->
-               MaybeNode cfg ar wb fs ->
-               HSnocVectMaybeNode cfg (S k) (ars :< ar) wb fs
+               HSnocVectMaybeNode cfg k ars wb ->
+               MaybeNode cfg ar wb False ->
+               HSnocVectMaybeNode cfg (S k) (ars :< ar) wb
 
     public export
     traverse' : Applicative f =>
                 (
                     {0 ar : NodeArgs} ->
-                    MaybeNode cfg ar wb1 fs1 ->
-                    f (MaybeNode cfg ar wb2 fs2)
+                    MaybeNode cfg ar wb1 False ->
+                    f (MaybeNode cfg ar wb2 False)
                 ) ->
-                HSnocVectMaybeNode cfg k ars wb1 fs1 ->
-                f (HSnocVectMaybeNode cfg k ars wb2 fs2)
+                HSnocVectMaybeNode cfg k ars wb1 ->
+                f (HSnocVectMaybeNode cfg k ars wb2)
     traverse' g [<] = pure [<]
     traverse' g (xs :< x) = [| traverse' g xs :< g x |]
 
@@ -125,16 +125,15 @@ namespace Node
               (meta : Metadata) ->
               {k : Nat} ->
               {ars : SnocVectNodeArgs k} ->
-              (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb False) ->
+              (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb) ->
               Node (MkNodeCfg clustSize) (
-                  let cur' = divCeilNZ (DirentSize * (2 + k)) clustSize
-                  in MkNodeArgs cur' (cur' + totsum ars) @{lteAddRight cur' {m = totsum ars}}
+                  MkNodeArgs (divCeilNZ (DirentSize * (2 + k)) clustSize) (divCeilNZ (DirentSize * (2 + k)) clustSize + totsum ars) @{lteAddRight (divCeilNZ (DirentSize * (2 + k)) clustSize) {m = totsum ars}}
               ) wb False
         Root : forall clustSize.
                (0 clustNZ : IsSucc clustSize) =>
                {k : Nat} ->
                {ars : SnocVectNodeArgs k} ->
-               (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb False) ->
+               (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb) ->
                Node (MkNodeCfg clustSize) (
                    let cur' = divCeilNZ (DirentSize * k) clustSize
                    in MkNodeArgs cur' (cur' + totsum ars) @{lteAddRight cur' {m = totsum ars}}
