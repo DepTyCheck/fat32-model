@@ -7,7 +7,6 @@ import Data.DPair
 %prefix_record_projections off
 %hide Data.Nat.divCeilNZ
 
--- TODO:Consider changing labels to something like "Root | NonRoot" in order to reduce ambiguity in types (like the fs parameter) 
 public export
 data IndexRootLabel = RootI | NonRootI
 
@@ -29,8 +28,15 @@ namespace HSnocVectMaybeNode
     public export
     indexGet : (vect : HSnocVectMaybeNode cfg k ars wb) -> (idx : IndexIn vect dirl) -> Exists (\ar' => (nd : Node cfg ar' wb False ** AtIndex idx nd))
 
+    public export
+    indexUpd : (cfg : NodeCfg) ->
+               (ars : SnocVectNodeArgs k) ->
+               (vect : HSnocVectMaybeNode cfg k ars wb) ->
+               (idx : IndexIn vect dirl) ->
+               (f : forall ar1. Node cfg ar1 wb False -> (ar2 ** Node cfg ar2 wb False)) ->
+               (ars' ** HSnocVectMaybeNode cfg k ars' wb)
+
 namespace Node
-    
     public export
     data IndexIn : Node cfg ar wb fs -> IndexRootLabel -> IndexDirLabel -> Type where
         HereFile : IndexIn (File @{clustNZ} meta) NonRootI FileI 
@@ -57,12 +63,27 @@ namespace Node
     indexGet f@(.(Dir _ _ @{_})) HereDir = Evidence _ (f ** HereDir')
     indexGet f@(.(Root _ @{_})) HereRoot = Evidence _ (f ** HereRoot')
 -- FIXME: This probably only works because of a compiler bug (xs changes quantity from 0 to ω when matching a bogus as-pattern), may break in the future
--- TODO: Fill holes
     indexGet .(Dir _ xs @{_}) (ThereDir idx) {ar=ar@(MkNodeArgs {})} with (indexGet xs idx)
       _ | (Evidence _ (nd ** prf)) = Evidence _ (nd ** ThereDir' prf)
     indexGet .(Root xs @{_}) (ThereRoot idx) {ar=ar@(MkNodeArgs {})} with (indexGet xs idx)
       _ | (Evidence _ (nd ** prd)) = Evidence _ (nd ** ThereRoot' prd)
     -- indexGet .(File _) (ThereDir _) impossible
+
+    public export
+    indexUpd : (cfg : NodeCfg) ->
+               (node : Node cfg ar wb fs) ->
+               (idx : IndexIn node rootl dirl) ->
+               (f : forall ar1. Node cfg ar1 wb (rootl == RootI) -> (ar2 ** Node cfg ar2 wb (rootl == RootI))) ->
+               (ar' ** Node cfg ar' wb fs)
+    indexUpd _ nd@(.(File _ @{_})) HereFile f = f nd
+    indexUpd _ nd@(.(FileB _ _ @{_})) HereFileB f = f nd
+    indexUpd _ nd@(.(Dir _ _ @{_})) HereDir f = f nd
+    indexUpd _ nd@(.(Root _ @{_})) HereRoot f = f nd
+    indexUpd cfg@(MkNodeCfg _) (Dir {ars} meta xs) (ThereDir idx) f {ar=ar@(MkNodeArgs _ (_ + totsum ars))} with (indexUpd cfg ars xs idx f)
+        _ | (ars' ** xs') = (_ ** Dir meta xs')
+    indexUpd cfg@(MkNodeCfg _) (Root {ars} xs) (ThereRoot idx) f {ar=ar@(MkNodeArgs _ (_ + totsum ars))} with (indexUpd cfg ars xs idx f)
+        _ | (ars' ** xs') = (_ ** Root xs')
+    indexUpd _ .(File _ @{_}) (ThereDir _) _ impossible
 
 
 namespace HSnocVectMaybeNode
@@ -79,4 +100,9 @@ namespace HSnocVectMaybeNode
       _ | (Evidence _ (nd ** prf)) = Evidence _ (nd ** Here' prf)
     indexGet (xs :< _) (There idx) with (indexGet xs idx)
       _ | (Evidence _ (nd ** prf)) = Evidence _ (nd ** There' prf)
+
+    indexUpd cfg (_ :< ar) (xs :< Just x) (Here idx) f with (indexUpd cfg x idx f)
+        _ | (_ ** nd) = (_ ** (xs :< Just nd))
+    indexUpd cfg (ars :< _) (xs :< x) (There idx) f with (indexUpd cfg ars xs idx f)
+        _ | (_ ** xs') = (_ ** (xs' :< x))
 
