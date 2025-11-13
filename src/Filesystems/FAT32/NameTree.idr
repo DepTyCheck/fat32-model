@@ -17,7 +17,7 @@ namespace NameTree
     data UniqNames : Nat -> Type
 
     public export
-    data HSnocVectNameTree : HSnocVectMaybeNode cfg k ars True -> Type where
+    data HSnocVectNameTree : HSnocVectMaybeNode cfg k ars Blobful -> Type where
         Lin : HSnocVectNameTree [<]
         (:<) : HSnocVectNameTree nodes -> MaybeNameTree node -> HSnocVectNameTree (nodes :< node)
 
@@ -28,23 +28,19 @@ namespace NameTree
         File : {0 clustSize : Nat} ->
                {0 clustNZ : IsSucc clustSize} ->
                {0 k : Nat} ->
-               NameTree $ File @{clustNZ} meta {k}
-        FileB : {0 clustSize : Nat} ->
-                {0 clustNZ : IsSucc clustSize} ->
-                {0 k : Nat} ->
-                {0 blob : SnocVectBits8 k} ->
-                NameTree $ FileB @{clustNZ} meta blob {k}
+               {0 blob : Blob k wb} ->
+               NameTree $ File @{clustNZ} meta blob {k}
         Dir : {0 clustSize : Nat} ->
               {0 clustNZ : IsSucc clustSize} ->
               {0 k : Nat} ->
               {0 ars : SnocVectNodeArgs k} ->
-              {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True} ->
+              {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars Blobful} ->
               UniqNames k -> HSnocVectNameTree nodes -> NameTree $ Dir @{clustNZ} meta nodes
         Root : {0 clustSize : Nat} ->
                {0 clustNZ : IsSucc clustSize} ->
                {0 k : Nat} ->
                {0 ars : SnocVectNodeArgs k} ->
-               {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True} ->
+               {0 nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars Blobful} ->
                UniqNames k -> HSnocVectNameTree nodes -> NameTree $ Root @{clustNZ} nodes
 
     data MaybeNameTree : MaybeNode cfg ar wb fs -> Type where
@@ -69,8 +65,8 @@ genNameTree : Fuel ->
               (Fuel -> Gen MaybeEmpty Filename) =>
               (cfg : NodeCfg) ->
               (ar : NodeArgs) ->
-              (wb : Bool) ->
-              (fs : Bool) ->
+              (wb : BlobLabel) ->
+              (fs : RootLabel) ->
               (node : Node cfg ar wb fs) ->
               Gen MaybeEmpty $ NameTree node
 

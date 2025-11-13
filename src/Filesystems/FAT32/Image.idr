@@ -81,10 +81,10 @@ dotdotDirent cnum with (repr32' $ cast cnum)
 
 -- TODO: date and time generation
 -- TODO: proper volume labels
-makeDirent : {clustSize : Nat} -> (0 clustNZ : IsSucc clustSize) => MaybeNode (MkNodeCfg clustSize) (MkNodeArgs cur tot @{ctprf}) True False -> Filename -> (clustNum : Nat) -> VectBits8 DirentSize
+makeDirent : {clustSize : Nat} -> (0 clustNZ : IsSucc clustSize) => MaybeNode (MkNodeCfg clustSize) (MkNodeArgs cur tot @{ctprf}) Blobful Rootless -> Filename -> (clustNum : Nat) -> VectBits8 DirentSize
 makeDirent node fname cnum with (repr32' $ cast cnum)
-    makeDirent (Just $ FileB meta x {k=0}) (MkFilename name) clustNum | (b0::b1::b2::b3::[]) = name ++ serializeMeta meta :: replicate _ 0
-    makeDirent (Just $ FileB meta x {k=S k'}) (MkFilename name) clustNum | (b0::b1::b2::b3::[]) = name ++ serializeMeta meta :: replicate 8 0 ++ [b2, b3] ++ replicate 4 0 ++ [b0, b1] ++ repr32' (cast $ S k')
+    makeDirent (Just $ File meta (BlobSome x) {k=0}) (MkFilename name) clustNum | (b0::b1::b2::b3::[]) = name ++ serializeMeta meta :: replicate _ 0
+    makeDirent (Just $ File meta (BlobSome x) {k=S k'}) (MkFilename name) clustNum | (b0::b1::b2::b3::[]) = name ++ serializeMeta meta :: replicate 8 0 ++ [b2, b3] ++ replicate 4 0 ++ [b0, b1] ++ repr32' (cast $ S k')
     makeDirent (Just $ Dir meta entries) (MkFilename name) clustNum | (b0::b1::b2::b3::[]) = name ++ (serializeMeta meta .|. 0x10) :: replicate 8 0 ++ [b2, b3] ++ replicate 4 0 ++ [b0, b1] ++ replicate 4 0
     makeDirent Nothing _ _ | _ = emptyDirent
 
@@ -146,7 +146,7 @@ writeBlob clustSize' blob currClust cmap dataOffset fatOffset image = do
 
 mapNodesAndNamesToDirents : {clustSize : Nat} ->
            (0 clustNZ : IsSucc clustSize) =>
-           (nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars True) ->
+           (nodes : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars Blobful) ->
            (names : UniqNames k) ->
            (cmap : IArray cls (Fin tcls)) ->
            (currClust : Nat) ->
@@ -164,7 +164,7 @@ serializeNode : {clustSize' : Nat} ->
                 {cur : Nat} ->
                 {tot : Nat} ->
                 {0 ctprf : LTE cur tot} ->
-                (node : Node (MkNodeCfg clustSize') (MkNodeArgs cur tot @{ctprf}) True fs) ->
+                (node : Node (MkNodeCfg clustSize') (MkNodeArgs cur tot @{ctprf}) Blobful fs) ->
                 (currClust : Nat) ->
                 (parentPhys : Nat) ->
                 (names : NameTree node) ->
@@ -179,7 +179,7 @@ serializeNode : {clustSize' : Nat} ->
 
 forNodesAndNameTrees_ : {clustSize' : Nat} ->
                         (0 clustNZ : IsSucc clustSize') =>
-                        (nodes : HSnocVectMaybeNode (MkNodeCfg clustSize') k ars True) ->
+                        (nodes : HSnocVectMaybeNode (MkNodeCfg clustSize') k ars Blobful) ->
                         (nameTrees : HSnocVectNameTree nodes) ->
                         (currClust : Nat) ->
                         (parentPhys : Nat) ->
@@ -198,7 +198,7 @@ forNodesAndNameTrees_ ((:<) sx (Just x) {ar=MkNodeArgs cur tot @{ctprf}} {ars=ar
 forNodesAndNameTrees_ ((:<) sx Nothing {ar=MkNodeArgs cur tot @{ctprf}} {ars=ars'}) (sy :< Nothing) currClust parentPhys cmap dataOffset fatOffset image = forNodesAndNameTrees_ sx sy (currClust + tot) parentPhys cmap dataOffset fatOffset image @{%search} @{rewrite sym $ plusAssociative currClust tot (totsum ars') in clsBounds}
 
 
-serializeNode (FileB meta blob {k}) currClust _ names cmap dataOffset fatOffset image = 
+serializeNode (File meta (BlobSome blob) {k}) currClust _ names cmap dataOffset fatOffset image = 
     writeBlob clustSize' blob currClust cmap dataOffset fatOffset image
 serializeNode (Dir meta nodes {k} {ars}) currClust parentPhys (Dir names nameTrees {nodes}) cmap dataOffset fatOffset image = do
     let currPhys : Nat
@@ -240,7 +240,7 @@ buildImage : {clustSize' : Nat} ->
              {cur : Nat} ->
              {tot : Nat} ->
              {0 ctprf : LTE cur tot} ->
-             (node : Node (MkNodeCfg clustSize') (MkNodeArgs cur tot @{ctprf}) True True) ->
+             (node : Node (MkNodeCfg clustSize') (MkNodeArgs cur tot @{ctprf}) Blobful Rootful) ->
              (names : NameTree node) ->
              (cmap : IArray tot (Fin tcls)) ->
              (image : MBuffer s tsz) ->
@@ -450,7 +450,7 @@ genImageIO seed fuel1 fuel2 (MkNodeCfg clustSize @{clustNZ}) minClust printNode 
         | Nothing => die "failed to generate NodeB"
     when printNodeB $ printLn nodeb
     putStrLn "generating NameTree..."
-    let (Just names) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genNameTree fuel2 (MkNodeCfg clustSize) (MkNodeArgs cur tot) True True nodeb @{const genBits8} @{const genFilename}
+    let (Just names) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genNameTree fuel2 (MkNodeCfg clustSize) (MkNodeArgs cur tot) Blobful Rootful nodeb @{const genBits8} @{const genFilename}
         | Nothing => die "failed to generate NameTree"
     when printNames $ printLn names
     let tcls : Nat
