@@ -27,7 +27,7 @@ depends = deptycheck
 modules = Filesystems.FAT32
         , Filesystems.FAT32.Image
         , Filesystems.FAT32.Derived.Node
-        , Filesystems.FAT32.Derived.NameTree
+        , Filesystems.FAT32.Derived.UniqNames
         , Data.Monomorphic.Vect
 
 -- main file (i.e. file to load at REPL)
@@ -41,7 +41,7 @@ builddir = "build"
 -- outputdir =
 
 -- script to run before building
-prebuild = "sh .derive-in-parallel"
+-- prebuild = "sh .derive-in-parallel"
 
 -- script to run after building
 -- postbuild =

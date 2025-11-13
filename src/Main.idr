@@ -4,7 +4,7 @@ import Data.Nat
 import Data.Monomorphic.Vect
 import Filesystems.FAT32.Image
 import Filesystems.FAT32.Derived.Node
-import Filesystems.FAT32.Derived.NameTree
+import Filesystems.FAT32.Derived.UniqNames
 import Filesystems.FAT32.FSStructs
 import System.Random.Pure.StdGen
 import System
@@ -108,7 +108,7 @@ optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeCfg "<size>") "clust
        -- , MkOpt ['q'] ["quiet", "no-print"] (NoArg $ {printGen := Just False} emptyCfg) "don't print the generated value"
        , MkOpt ['D'] ["print-node"] (NoArg $ {printNode := Just True} emptyCfg) "print the generated Node"
        , MkOpt ['B'] ["print-nodeb"] (NoArg $ {printNodeB := Just True} emptyCfg) "print the generated NodeB"
-       , MkOpt ['T'] ["print-names"] (NoArg $ {printNames := Just True} emptyCfg) "print the generated NameTree"
+       , MkOpt ['T'] ["print-names"] (NoArg $ {printNames := Just True} emptyCfg) "print the generated NodeBN"
        , MkOpt ['h'] ["help"] (NoArg $ {help := Just True} emptyCfg) "print usage information"
        , MkOpt ['o'] ["output"] (ReqArg' parseOut "<output>") "output image filename"
        ]

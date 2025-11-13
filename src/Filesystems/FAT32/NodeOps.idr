@@ -1,7 +1,6 @@
 module Filesystems.FAT32.NodeOps
 
 import Filesystems.FAT32
-import Filesystems.FAT32.NameTree
 import Filesystems.FAT32.Index
 
 %default total
