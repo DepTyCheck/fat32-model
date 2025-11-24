@@ -5,6 +5,9 @@ import Data.Monomorphic.Vect
 import Filesystems.FAT32.Image
 import Filesystems.FAT32.Derived.Node
 import Filesystems.FAT32.Derived.UniqNames
+import Filesystems.FAT32.Derived.NodeOps
+import Filesystems.FAT32.NodeOps
+import Filesystems.FAT32.NodeOps.CPrinter
 import Filesystems.FAT32.FSStructs
 import System.Random.Pure.StdGen
 import System
@@ -16,8 +19,13 @@ import Data.Buffer
 import Data.Buffer.Core
 import Data.Buffer.Indexed
 import System.File.Buffer
+import System.File.ReadWrite
+import Control.Monad.Pure
 
 %default total
+%hide Data.Nat.divCeilNZ
+%hide Data.Array.Index.lsl
+%hide Data.Array.Index.refl
 %cg chez lazy=weakMemo
 %language ElabReflection
 
@@ -144,8 +152,14 @@ main = do
     -- pure ()
     -- let (Just (image, size)) = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genImage cfg.fuel1 cfg.fuel2 cfg.params cfg.minClust
     --     | Nothing => die "failed to generate image"
-    (image, size) <- genImageIO cfg.seed cfg.fuel1 cfg.fuel2 cfg.params cfg.minClust cfg.printNode cfg.printNodeB cfg.printNames 
-    Right () <- writeBufferToFile cfg.output image size
+    ((ar ** nodebn), image, size) <- genImageIO cfg.seed cfg.fuel1 cfg.params cfg.minClust cfg.printNode cfg.printNodeB cfg.printNames 
+    Right () <- writeBufferToFile (cfg.output ++ ".img") image size
+        | Left err => die "file error: \{show err}"
+    putStrLn "generating NodeOps..."
+    let Just ops = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genNodeOps cfg.fuel2 cfg.params ar nodebn
+        | Nothing => die "failed to generate NodeOps"
+    putStrLn "converting to C..."
+    Right () <- writeFile (cfg.output ++ ".c") $ buildCProg cfg.params nodebn ops
         | Left err => die "file error: \{show err}"
     pure ()
 

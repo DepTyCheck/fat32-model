@@ -73,6 +73,14 @@ data Filename : Type where
 %runElab derive "Filename" [Show, Eq]
 
 public export
+Interpolation Filename where
+    interpolate (MkFilename f) with (splitAt FilenameLengthName f)
+        _ | (MkVectBits8Pair namev extv) =
+            let name = (reverse . ltrim . reverse) "\{namev}"
+                ext = (reverse . ltrim . reverse) "\{extv}"
+            in if null ext then name else "\{name}.\{ext}"
+            
+public export
 data UniqNames : Nat -> Type
 
 public export
@@ -243,6 +251,7 @@ fillNames' _ Nothing = pure Nothing
 fillNames' _ (Just (File meta x)) = pure $ Just $ File meta x
 fillNames' fuel (Just (Dir meta _ entries {k})) = pure $ Just $ Dir meta (NamesSome !(genUniqNames fuel k)) !(assert_total $ traverse' (fillNames' fuel) entries)
 
+public export
 fillNames : Fuel -> 
             Node cfg ar wb Nameless Rootful -> 
             Gen MaybeEmpty $ Node cfg ar wb Nameful Rootful

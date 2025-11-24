@@ -229,6 +229,7 @@ serializeNode _ _ _ _ _ _ _ = pure ()
 bdataFatPrf : (bdata : BootSectorData cs m n) -> (LTE (8 + bdata.dataClust * 4) (bdata.fatSz * bdata.bytsPerSec))
 bdataFatPrf bdata = rewrite bdata.fatPrf in divCeilMultLTE (8 + bdata.dataClust * 4) bdata.bytsPerSec
 
+public export
 buildImage : {clustSize' : Nat} ->
              (0 clustNZ : IsSucc clustSize') =>
              (bdata : BootSectorData clustSize' tcls tsz) ->
@@ -435,8 +436,8 @@ buildImage bdata bsect fsinfo node cmap image = do
 --         pure $ (unsafeFromMBuffer image, cast tsz)
 
 public export
-genImageIO : (seed : Bits64) -> (fuel1 : Fuel) -> (fuel2 : Fuel) -> (cfg : NodeCfg) -> (minClust : Nat) -> Bool -> Bool -> Bool -> IO (Buffer, Int)
-genImageIO seed fuel1 fuel2 (MkNodeCfg clustSize @{clustNZ}) minClust printNode printNodeB printNames = do
+genImageIO : (seed : Bits64) -> (fuel1 : Fuel) -> (cfg : NodeCfg) -> (minClust : Nat) -> Bool -> Bool -> Bool -> IO ((ar ** Node cfg ar Blobful Nameful Rootful), Buffer, Int)
+genImageIO seed fuel1 (MkNodeCfg clustSize @{clustNZ}) minClust printNode printNodeB printNames = do
     putStrLn "generating Node..."
     let (Just (ar@(MkNodeArgs cur tot) ** node)) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genFilesystem fuel1 $ MkNodeCfg clustSize
         | Nothing => die "failed to generate Node"
@@ -446,7 +447,7 @@ genImageIO seed fuel1 fuel2 (MkNodeCfg clustSize @{clustNZ}) minClust printNode 
         | Nothing => die "failed to generate NodeB"
     when printNodeB $ printLn nodeb
     putStrLn "generating NodeBN..."
-    let (Just nodebn) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ fillNames fuel2 nodeb
+    let (Just nodebn) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ fillNames fuel1 nodeb
         | Nothing => die "failed to generate NodeBN"
     when printNames $ printLn nodebn
     -- putStrLn "generating NameTree..."
@@ -483,5 +484,4 @@ genImageIO seed fuel1 fuel2 (MkNodeCfg clustSize @{clustNZ}) minClust printNode 
     pure $ runPure $ do
         image <- mbuffer tsz
         buildImage bdata bsect fsinfo nodebn cmap image
-        pure $ (unsafeFromMBuffer image, cast tsz)
-
+        pure $ (((MkNodeArgs cur tot) ** nodebn), unsafeFromMBuffer image, cast tsz)

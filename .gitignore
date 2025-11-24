@@ -1,4 +1,5 @@
 build/
 *.log
 *.img
+out_*
 pretty.sh

@@ -65,6 +65,14 @@ namespace VectBits8
     packVect : {n : Nat} -> VectBits8 n -> IBuffer n
     packVect = buffer . toVect
 
+    toCharList : VectBits8 n -> List Char
+    toCharList [] = []
+    toCharList (x :: xs) = cast x :: toCharList xs
+
+    public export
+    Interpolation (VectBits8 n) where
+        interpolate xs = fastPack $ toCharList xs
+
 namespace SnocVectBits8
     public export
     data SnocVectBits8 : Nat -> Type where
