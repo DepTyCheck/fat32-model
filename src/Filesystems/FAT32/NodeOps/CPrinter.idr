@@ -55,7 +55,7 @@ bool False = "false"
 
 public export
 printCOps : {cfg : NodeCfg} -> (node : Node cfg ar Blobful Nameful Rootful) -> NodeOps cfg node -> List String
-printCOps root (Stat idx cont) with (indexGet root idx)
+printCOps root (GetFlags idx cont) with (indexGet root idx)
     _ | (Evidence _ ((File meta _) ** prf)) = #"""
           {
             errno = 0;
@@ -127,6 +127,12 @@ printCOps root (SetFlags idx meta cont) = #"""
           }
 
         """# :: printCOps (setFlags cfg root idx meta) cont
+printCOps root (NewDir idx meta cont) = #"""
+          {
+            errno = 0;
+          }
+
+        """# :: printCOps (addDir cfg root idx meta) cont
 printCOps _ Nop = [#"puts("All done!");\#n"#]
 
 public export
