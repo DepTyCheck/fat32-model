@@ -22,6 +22,7 @@ depends = deptycheck
         , array
         , algebra
         , containers
+        , i-hate-parens
 
 -- modules to install
 modules = Filesystems.FAT32

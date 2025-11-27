@@ -5,11 +5,13 @@ import Filesystems.FAT32.Index
 import Derive.Prelude
 import Syntax.PreorderReasoning
 import Syntax.PreorderReasoning.Generic
+import Syntax.IHateParens
 
 
 %default total
 %prefix_record_projections off
 %language ElabReflection
+%hide Data.Nat.divCeilNZ
 
 
 public export
@@ -20,10 +22,19 @@ where f : Node cfg ar1 wb nm Rootless -> Node cfg ar1 wb nm Rootless
       f (Dir _ names entries) = Dir meta names entries
 
 public export
+namesGet : (node : Node cfg ar wb Nameful Rootful) -> (idx : IndexIn node rootl DirI) -> (k ** UniqNames k)
+namesGet node idx {ar} with (indexGet node idx)
+  _ | (Evidence _ ((Dir _ (NamesSome names) _ ** _))) = (_ ** names)
+  _ | (Evidence _ ((Root (NamesSome names) _ ** _))) = (_ ** names)
+  namesGet (Root {ars} names xs) (ThereRoot x) {ar=MkNodeArgs _ (_ + totsum ars)} | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
+
+public export
 addDir : (cfg : NodeCfg) ->
-         (node : Node cfg (MkNodeArgs cur tot @{lprf}) wb nm Rootful) ->
+         (node : Node cfg (MkNodeArgs cur tot @{lprf}) wb Nameful Rootful) ->
          (idx : IndexIn node rootl DirI) ->
          Metadata ->
+         (name : Filename) ->
+         (nameprf : uncurry NameIsNew .| namesGet node idx .| name) ->
          Node cfg (case idx of
            HereRoot => MkNodeArgs (cur + DirentSize) (tot + 3 * DirentSize) @{ CalcSmart $
              |~ cur + DirentSize
@@ -35,8 +46,11 @@ addDir : (cfg : NodeCfg) ->
                ..< plusAssociative _ _ _
            }
            _ => MkNodeArgs cur (tot + 3 * DirentSize) @{lprf `transitive` lteAddRight tot}
-         ) wb nm fs
+         ) wb Nameful Rootful
+addDir cfg node idx x name nameprf = ?addDir_rhs
 -- TODO: implement addDir
+-- ponder if indexUpd should be generalized somehow to allow for fully type-level NodeArgs updating (throughout the whole path upwards to the root)
+
 
 
 public export
@@ -51,9 +65,10 @@ data NodeOps : (cfg : NodeCfg) -> (node : Node cfg ar Blobful Nameful Rootful) -
                NodeOps cfg node
     NewDir   : (idx : IndexIn node rootl DirI) ->
                (meta : Metadata) ->
-               (cont : NodeOps cfg (addDir cfg node idx meta)) ->
+               (name : Filename) ->
+               (nameprf : uncurry NameIsNew .| namesGet node idx .| name) ->
+               (cont : NodeOps cfg (addDir cfg node idx meta name nameprf)) ->
                NodeOps cfg {ar=MkNodeArgs cur tot @{lprf}} node
-    -- TODO: add dirname parameter to NewDir, ensure name uniqueness
 
 -- %runElab deriveIndexed "NodeOps" [Show]
 

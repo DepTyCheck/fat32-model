@@ -71,7 +71,7 @@ namespace VectBits8
 
     public export
     Interpolation (VectBits8 n) where
-        interpolate xs = fastPack $ toCharList xs
+        interpolate xs = pack $ toCharList xs
 
 namespace SnocVectBits8
     public export

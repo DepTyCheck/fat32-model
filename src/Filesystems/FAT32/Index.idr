@@ -19,6 +19,9 @@ namespace HSnocVectMaybeNode
 
     public export
     data AtIndex : {sx : HSnocVectMaybeNode cfg k ars wb nm} -> (idx : IndexIn sx dirl) -> Node cfg ar wb nm Rootless -> Type
+
+    public export
+    Uninhabited (HSnocVectMaybeNode.AtIndex {dirl=DirI} idx (File @{clustNZ} meta blob))
     
     public export
     indexGet : (vect : HSnocVectMaybeNode cfg k ars wb nm) -> (idx : IndexIn vect dirl) -> Exists (\ar' => (nd : Node cfg ar' wb nm Rootless ** AtIndex idx nd))
@@ -53,11 +56,16 @@ namespace Node
     public export
     data AtIndex : {node : Node cfg ar wb nm fs} -> (idx : IndexIn node rootl dirl) -> Node cfg ar' wb nm fs' -> Type where
         [search node idx]
-        HereFile' : AtIndex HereFile node
-        HereDir' : AtIndex HereDir node
-        HereRoot' : AtIndex HereRoot node
+        HereFile' : AtIndex {node=File @{clustNZ} meta blob} HereFile $ File @{clustNZ} meta blob 
+        HereDir' : AtIndex {node=Dir @{clustNZ} meta names entries} HereDir $ Dir @{clustNZ} meta names entries
+        HereRoot' : AtIndex {node=Root @{clustNZ} names entries} HereRoot $ Root @{clustNZ} names entries
         ThereDir' : AtIndex {cfg = MkNodeCfg clustSize @{clustNZ}} {sx} i nd -> AtIndex {node = Dir @{clustNZ} meta names sx} (ThereDir i) nd
         ThereRoot' : AtIndex {cfg = MkNodeCfg clustSize @{clustNZ}} {sx} i nd -> AtIndex {node = Root @{clustNZ} names sx} (ThereRoot i) nd
+
+    public export
+    Uninhabited (Node.AtIndex {dirl=DirI} idx (File @{clustNZ} meta blob)) where
+      uninhabited (ThereDir' x) = uninhabited x
+      uninhabited (ThereRoot' x) = uninhabited x
 
     public export
     indexGet : (node : Node cfg ar wb nm fs) -> (idx : IndexIn node rootl dirl) -> Exists (\ar' => (nd : Node cfg ar' wb nm rootl ** AtIndex idx nd))
@@ -112,6 +120,10 @@ namespace HSnocVectMaybeNode
         [search sx idx]
         Here' : AtIndex {ar} {node = x} i nd -> AtIndex {ars = ars :< ar} {sx = (:<) {ar} sx (Just x)} (Here i) nd
         There' : AtIndex {sx} i nd -> AtIndex {sx = sx :< x} (There i) nd
+    
+    Uninhabited (HSnocVectMaybeNode.AtIndex {dirl=DirI} idx (File @{clustNZ} meta blob)) where
+      uninhabited (Here' x) = uninhabited x
+      uninhabited (There' x) = uninhabited x
 
     indexGet (_ :< Just x) (Here idx) with (indexGet x idx)
       _ | (Evidence _ (nd ** prf)) = Evidence _ (nd ** Here' prf)

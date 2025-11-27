@@ -127,12 +127,12 @@ printCOps root (SetFlags idx meta cont) = #"""
           }
 
         """# :: printCOps (setFlags cfg root idx meta) cont
-printCOps root (NewDir idx meta cont) = #"""
+printCOps root (NewDir idx meta name nameprf cont) = #"""
           {
             errno = 0;
           }
 
-        """# :: printCOps (addDir cfg root idx meta) cont
+        """# :: printCOps (addDir cfg root idx meta name nameprf) cont
 printCOps _ Nop = [#"puts("All done!");\#n"#]
 
 public export
