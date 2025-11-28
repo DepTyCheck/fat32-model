@@ -127,12 +127,18 @@ printCOps root (SetFlags idx meta cont) = #"""
           }
 
         """# :: printCOps (setFlags cfg root idx meta) cont
-printCOps root (NewDir idx meta name nameprf cont) = #"""
+printCOps root (NewDir idx name nameprf cont) = #"""
           {
             errno = 0;
+            int fd = open("\#{index2UnixPath root idx}", O_RDWR);
+            panic_on(fd < 0);
+            int res = mkdirat(fd, "\#{name}", 0777);
+            panic_on(res < 0);
+            res = close(fd);
+            panic_on(res < 0);
           }
 
-        """# :: printCOps (addDir cfg root idx meta name nameprf) cont
+        """# :: printCOps (snd $ addDir cfg root idx name nameprf) cont
 printCOps _ Nop = [#"puts("All done!");\#n"#]
 
 public export

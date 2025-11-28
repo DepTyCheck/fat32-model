@@ -30,28 +30,15 @@ namesGet node idx {ar} with (indexGet node idx)
 
 public export
 addDir : (cfg : NodeCfg) ->
-         (node : Node cfg (MkNodeArgs cur tot @{lprf}) wb Nameful Rootful) ->
+         (node : Node cfg ar wb Nameful Rootful) ->
          (idx : IndexIn node rootl DirI) ->
-         Metadata ->
          (name : Filename) ->
          (nameprf : uncurry NameIsNew .| namesGet node idx .| name) ->
-         Node cfg (case idx of
-           HereRoot => MkNodeArgs (cur + DirentSize) (tot + 3 * DirentSize) @{ CalcSmart $
-             |~ cur + DirentSize
-             <~ tot + DirentSize
-               ..> plusLteMonotoneRight _ _ _ lprf
-             <~ (tot + DirentSize) + 2 * DirentSize
-               ..> lteAddRight _
-             ~~ tot + 3 * DirentSize
-               ..< plusAssociative _ _ _
-           }
-           _ => MkNodeArgs cur (tot + 3 * DirentSize) @{lprf `transitive` lteAddRight tot}
-         ) wb Nameful Rootful
-addDir cfg node idx x name nameprf = ?addDir_rhs
--- TODO: implement addDir
--- ponder if indexUpd should be generalized somehow to allow for fully type-level NodeArgs updating (throughout the whole path upwards to the root)
-
-
+         (ar' ** Node cfg ar' wb Nameful Rootful)
+addDir cfg@(MkNodeCfg clusterSize) node idx name nameprf {ar} with (indexGet node idx)
+  _ | (Evidence _ ((Dir meta' (NamesSome names') sx' ** _))) = indexSet (MkNodeCfg _) node idx (Dir meta' (NamesSome $ NewName @{names'} name @{nameprf}) (sx' :< Just (Dir (MkMetadata False False False False) (NamesSome Empty) [<])))
+  _ | (Evidence _ ((Root (NamesSome names') sx' ** _))) = indexSet (MkNodeCfg _) node idx (Root (NamesSome $ NewName @{names'} name @{nameprf}) (sx' :< Just (Dir (MkMetadata False False False False) (NamesSome Empty) [<])))
+  addDir (MkNodeCfg _) (Root {ars} names xs) (ThereRoot x) _ _ {ar=MkNodeArgs _ (_ + totsum ars)} | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
 
 public export
 data NodeOps : (cfg : NodeCfg) -> (node : Node cfg ar Blobful Nameful Rootful) -> Type where
@@ -64,10 +51,9 @@ data NodeOps : (cfg : NodeCfg) -> (node : Node cfg ar Blobful Nameful Rootful) -
                (cont : NodeOps cfg (setFlags cfg node idx meta)) ->
                NodeOps cfg node
     NewDir   : (idx : IndexIn node rootl DirI) ->
-               (meta : Metadata) ->
                (name : Filename) ->
                (nameprf : uncurry NameIsNew .| namesGet node idx .| name) ->
-               (cont : NodeOps cfg (addDir cfg node idx meta name nameprf)) ->
+               (cont : NodeOps cfg (snd $ addDir cfg node idx name nameprf)) ->
                NodeOps cfg {ar=MkNodeArgs cur tot @{lprf}} node
 
 -- %runElab deriveIndexed "NodeOps" [Show]
