@@ -10,6 +10,8 @@ import Filesystems.FAT32.NodeOps
 
 header : String
 header = #"""
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -130,7 +132,7 @@ printCOps root (SetFlags idx meta cont) = #"""
 printCOps root (NewDir idx name nameprf cont) = #"""
           {
             errno = 0;
-            int fd = open("\#{index2UnixPath root idx}", O_RDWR);
+            int fd = open("\#{index2UnixPath root idx}", O_PATH | O_DIRECTORY);
             panic_on(fd < 0);
             int res = mkdirat(fd, "\#{name}", 0777);
             panic_on(res < 0);

@@ -60,6 +60,8 @@ data NodeOps : (cfg : NodeCfg) -> (node : Node cfg ar Blobful Nameful Rootful) -
 
 public export
 genNodeOps : Fuel ->
+             (Fuel -> Gen MaybeEmpty Bits8) => 
+             (Fuel -> Gen MaybeEmpty Filename) =>
              (cfg : NodeCfg) ->
              (ar : NodeArgs) ->
              (node : Node cfg ar Blobful Nameful Rootful) ->
