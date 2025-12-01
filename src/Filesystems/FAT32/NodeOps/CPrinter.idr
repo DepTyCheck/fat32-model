@@ -8,8 +8,8 @@ import Filesystems.FAT32.NodeOps
 %hide Data.Nat.divCeilNZ
 %prefix_record_projections off
 
-header : String
-header = #"""
+header : Nat -> String
+header len = #"""
 #define _GNU_SOURCE
 
 #include <stdio.h>
@@ -26,12 +26,23 @@ header = #"""
 
 #define panic_on(EXPR) do {if (EXPR) {perror(""); assert(0);}} while (0)
 
-int main() {
+int main(int argc, char **argv) {
+  if (argc < 2) {
+    fprintf(stderr, "Usage: ");
+    fprintf(stderr, "%s", argv[0]);
+    fprintf(stderr, " <mount_path>\n");
+    exit(EXIT_FAILURE);
+  }
+  int rootfd = open(argv[1], O_PATH | O_DIRECTORY);
+  panic_on(rootfd < 0);
+  puts("Running \#{show len} tests...");
 
 """#
 
 footer : String
 footer = #"""
+  int gres = close(rootfd);
+  panic_on(gres < 0);
 }
 
 """#
@@ -56,12 +67,13 @@ bool True = "true"
 bool False = "false"
 
 public export
-printCOps : {cfg : NodeCfg} -> (node : Node cfg ar Blobful Nameful Rootful) -> NodeOps cfg node -> List String
-printCOps root (GetFlags idx cont) with (indexGet root idx)
-    _ | (Evidence _ ((File meta _) ** prf)) = #"""
+printCOps : Nat -> Nat -> {cfg : NodeCfg} -> (node : Node cfg ar Blobful Nameful Rootful) -> NodeOps cfg node -> List String
+printCOps i len root (GetFlags idx cont) with (indexGet root idx)
+    _ | (Evidence _ ((File meta _) ** prf)) = let path = index2UnixPath root idx in #"""
           {
+            puts("Test \#{show i}/\#{show len}: GetFlags on \#{path}");
             errno = 0;
-            int fd = open("\#{index2UnixPath root idx}", O_RDONLY);
+            int fd = openat(rootfd, "\#{path}", O_RDONLY);
             panic_on(fd < 0);
             uint32_t attr;
             int res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
@@ -75,11 +87,12 @@ printCOps root (GetFlags idx cont) with (indexGet root idx)
             panic_on(res < 0);
           }
 
-        """# :: printCOps root cont
-    _ | (Evidence _ ((Dir meta _ _) ** prf)) = #"""
+        """# :: printCOps (i + 1) len root cont
+    _ | (Evidence _ ((Dir meta _ _) ** prf)) = let path = index2UnixPath root idx in #"""
           {
+            puts("Test \#{show i}/\#{show len}: GetFlags on \#{path}");
             errno = 0;
-            int fd = open("\#{index2UnixPath root idx}", O_RDONLY);
+            int fd = openat(rootfd, "\#{path}", O_RDONLY);
             panic_on(fd < 0);
             uint32_t attr;
             int res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
@@ -93,11 +106,12 @@ printCOps root (GetFlags idx cont) with (indexGet root idx)
             panic_on(res < 0);
           }
 
-        """# :: printCOps root cont
-    _ | (Evidence _ ((Root _ _) ** prf)) = #"""
+        """# :: printCOps (i + 1) len root cont
+    _ | (Evidence _ ((Root _ _) ** prf)) = let path = index2UnixPath root idx in #"""
           {
+            puts("Test \#{show i}/\#{show len}: GetFlags on \#{path}");
             errno = 0;
-            int fd = open("\#{index2UnixPath root idx}", O_RDONLY);
+            int fd = openat(rootfd, "\#{path}", O_RDONLY);
             panic_on(fd < 0);
             uint32_t attr;
             int res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
@@ -111,11 +125,12 @@ printCOps root (GetFlags idx cont) with (indexGet root idx)
             panic_on(res < 0);
           }
 
-        """# :: printCOps root cont
-printCOps root (SetFlags idx meta cont) = #"""
+        """# :: printCOps (i + 1) len root cont
+printCOps i len root (SetFlags idx meta cont) = let path = index2UnixPath root idx in #"""
           {
+            puts("Test \#{show i}/\#{show len}: SetFlags on \#{path}");
             errno = 0;
-            int fd = open("\#{index2UnixPath root idx}", O_RDONLY);
+            int fd = openat(rootfd, "\#{path}", O_RDONLY);
             panic_on(fd < 0);
             uint32_t attr = 0;
             attr |= \#{if meta.readOnly then "ATTR_RO" else "0"};
@@ -128,11 +143,12 @@ printCOps root (SetFlags idx meta cont) = #"""
             panic_on(res < 0);
           }
 
-        """# :: printCOps (setFlags cfg root idx meta) cont
-printCOps root (NewDir idx name nameprf cont) = #"""
+        """# :: printCOps (i + 1) len (setFlags cfg root idx meta) cont
+printCOps i len root (NewDir idx name nameprf cont) = let path = index2UnixPath root idx in #"""
           {
+            puts("Test \#{show i}/\#{show len}: NewDir \#{name} in \#{path}");
             errno = 0;
-            int fd = open("\#{index2UnixPath root idx}", O_PATH | O_DIRECTORY);
+            int fd = openat(rootfd, "\#{path}", O_PATH | O_DIRECTORY);
             panic_on(fd < 0);
             int res = mkdirat(fd, "\#{name}", 0777);
             panic_on(res < 0);
@@ -140,9 +156,22 @@ printCOps root (NewDir idx name nameprf cont) = #"""
             panic_on(res < 0);
           }
 
-        """# :: printCOps (snd $ addDir cfg root idx name nameprf) cont
-printCOps _ Nop = [#"puts("All done!");\#n"#]
+        """# :: printCOps (i + 1) len (snd $ newDir cfg root idx name nameprf) cont
+printCOps i len root (NewFile idx name nameprf cont) = let path = index2UnixPath root idx in #"""
+          {
+            puts("Test \#{show i}/\#{show len}: NewFile \#{name} in \#{path}");
+            errno = 0;
+            int fd = openat(rootfd, "\#{path}", O_PATH | O_DIRECTORY);
+            panic_on(fd < 0);
+            int res = openat(rootfd, "\#{name}", O_CREAT | O_EXCL | O_WRONLY);
+            panic_on(res < 0);
+            res = close(fd);
+            panic_on(res < 0);
+          }
+
+        """# :: printCOps (i + 1) len (snd $ newFile cfg root idx name nameprf) cont
+printCOps _ _ _ Nop = [#"puts("All done!");\#n"#]
 
 public export
 buildCProg : (cfg : NodeCfg) -> (root : Node cfg ar Blobful Nameful Rootful) -> (ops : NodeOps cfg root) -> String
-buildCProg cfg root ops = header ++ concat (printCOps root ops) ++ footer
+buildCProg cfg root ops = let len = length ops in header len ++ concat (printCOps 1 len root ops) ++ footer

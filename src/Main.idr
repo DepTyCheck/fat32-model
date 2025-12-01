@@ -34,7 +34,6 @@ record Config (m : Type -> Type) where
     params     : m NodeCfg
     fuel1      : m Fuel
     fuel2      : m Fuel
-    -- fuel3    : m Fuel
     seed       : m Bits64
     minClust   : m Nat
     printNode  : m Bool
@@ -50,7 +49,6 @@ emptyCfg = MkConfig
     { params     = Nothing
     , fuel1      = Nothing
     , fuel2      = Nothing
-    -- , fuel3    = Nothing
     , seed       = Nothing
     , minClust   = Nothing
     , printNode  = Nothing
@@ -68,7 +66,6 @@ defaultCfg = MkConfig
     { params     = MkNodeCfg 512
     , fuel1      = limit 10
     , fuel2      = limit 10
-    -- , fuel3    = limit 10
     , seed       = 1450262
     , minClust   = 0
     , printNode  = False
@@ -82,7 +79,7 @@ parseNat : String -> Either String Nat
 parseNat = (maybeToEither "not a natural number") . parsePositive
 
 parseFuel1 : String -> Either String $ Config Maybe
-parseFuel1 s = pure $ {fuel1 := Just $ limit !(parseNat s), fuel2 := Just $ limit !(parseNat s)} emptyCfg
+parseFuel1 s = pure $ {fuel1 := Just $ limit !(parseNat s)} emptyCfg
 
 parseFuel2 : String -> Either String $ Config Maybe
 parseFuel2 s = pure $ {fuel2 := Just $ limit !(parseNat s)} emptyCfg
