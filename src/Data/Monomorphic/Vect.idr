@@ -7,6 +7,18 @@ import Data.Buffer.Core
 import Data.Buffer.Indexed
 
 %default total
+%language ElabReflection
+
+public export
+data Presence = Present | Absent
+%runElab derive "Presence" [Show, Eq]
+
+namespace SnocVectPresence
+    public export
+    data SnocVectPresence : Nat -> Type where
+        Lin : SnocVectPresence Z
+        (:<) : SnocVectPresence k -> Presence -> SnocVectPresence (S k)
+    %runElab deriveIndexed "SnocVectPresence" [Show]
 
 public export %hint
 genBits8 : Gen MaybeEmpty Bits8
@@ -121,6 +133,5 @@ namespace SnocVectBits8
     genSnocVectBits8 0 = pure [<]
     genSnocVectBits8 (S k) = [| genSnocVectBits8 k :< genBits8 |]
 
-%language ElabReflection
 %runElab deriveIndexed "VectBits8" [Show]
 %runElab deriveIndexed "SnocVectBits8" [Show]

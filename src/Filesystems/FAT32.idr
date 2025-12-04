@@ -34,16 +34,12 @@ namespace Constants
     FilenameLength : Nat
     FilenameLength = FilenameLengthName + FilenameLengthExt
 
-public export
-data BlobLabel = Blobful | Blobless
+    public export
+    MaxBlobSize : Nat
+    MaxBlobSize = 1024
 
 public export
 data RootLabel = Rootful | Rootless
-
-public export
-data Blob : (k : Nat) -> (label : BlobLabel) -> Type where
-    BlobNone : Blob k Blobless
-    BlobSome : SnocVectBits8 k -> Blob k Blobful
 
 public export
 data NodeCfg : Type where
@@ -76,50 +72,31 @@ public export
 Interpolation Filename where
     interpolate (MkFilename f) with (splitAt FilenameLengthName f)
         _ | (MkVectBits8Pair namev extv) =
-            let name = (reverse . ltrim . reverse) "\{namev}"
-                ext = (reverse . ltrim . reverse) "\{extv}"
+            let name = rtrim "\{namev}"
+                ext = rtrim "\{extv}"
             in if null ext then name else "\{name}.\{ext}"
-            
-public export
-data UniqNames : Nat -> Type
-
-public export
-data NameIsNew : (k : Nat) -> UniqNames k -> Filename -> Type
-
-data UniqNames : Nat -> Type where
-    Empty : UniqNames Z
-    NewName : (ff : UniqNames k) => (f : Filename) -> (0 _ : NameIsNew k ff f) => UniqNames (S k)
-
-data NameIsNew : (k : Nat) -> UniqNames k -> Filename -> Type where
-    E : NameIsNew Z Empty f
-    N : (0 _ : So $ x /= f) ->
-        {0 ff : UniqNames k} ->
-        NameIsNew k ff x ->
-        {0 sub : NameIsNew k ff f} ->
-        NameIsNew (S k) (NewName @{ff} f @{sub}) x
-
-public export
-data NameLabel = Nameful | Nameless
-
-public export
-data Names : (k : Nat) -> (label : NameLabel) -> Type where
-    NamesNone : Names k Nameless
-    NamesSome : UniqNames k -> Names k Nameful
 
 namespace Node
     public export
-    data Node : NodeCfg -> NodeArgs -> (wb : BlobLabel) -> (nm : NameLabel) -> (fs : RootLabel) -> Type
+    data Node : NodeCfg -> NodeArgs -> (fs : RootLabel) -> Type
 
 namespace MaybeNode
     public export
-    data MaybeNode : NodeCfg -> NodeArgs -> BlobLabel -> NameLabel -> RootLabel -> Type where
-        Nothing : MaybeNode cfg ar wb nm fs
-        Just : Node cfg ar wb nm fs -> MaybeNode cfg ar wb nm fs
+    data MaybeNode : NodeCfg -> NodeArgs -> RootLabel -> Presence -> Type where
+        Nothing : MaybeNode cfg ar fs Absent
+        Just : Node cfg ar fs -> MaybeNode cfg ar fs Present
 
     public export
-    maybe : b -> MaybeNode cfg ar wb nm fs -> (Node cfg ar wb nm fs -> b) -> b
+    maybe : b -> MaybeNode cfg ar fs pr -> (Node cfg ar fs -> b) -> b
     maybe x Nothing f = x
     maybe x (Just y) f = f y
+
+namespace MaybeFilename
+    public export
+    data MaybeFilename : Presence -> Type where
+        Nothing : MaybeFilename Absent
+        Just : Filename -> MaybeFilename Present
+    %runElab deriveIndexed "MaybeFilename" [Show, Eq]
     
 namespace SnocVectNodeArgs
     public export
@@ -138,59 +115,86 @@ namespace SnocVectNodeArgs
 
 namespace HSnocVectMaybeNode
     public export
-    data HSnocVectMaybeNode : NodeCfg -> (k : Nat) -> SnocVectNodeArgs k -> BlobLabel -> NameLabel -> Type where
-        Lin : HSnocVectMaybeNode cfg 0 [<] wb nm
+    data HSnocVectMaybeNode : NodeCfg -> (k : Nat) -> SnocVectNodeArgs k -> SnocVectPresence k -> Type where
+        Lin : HSnocVectMaybeNode cfg 0 [<] [<]
         (:<) : {ar : NodeArgs} ->
-               HSnocVectMaybeNode cfg k ars wb nm ->
-               MaybeNode cfg ar wb nm Rootless ->
-               HSnocVectMaybeNode cfg (S k) (ars :< ar) wb nm
+               HSnocVectMaybeNode cfg k ars prs ->
+               MaybeNode cfg ar Rootless pr ->
+               HSnocVectMaybeNode cfg (S k) (ars :< ar) (prs :< pr)
 
     public export
     traverse' : Applicative f =>
                 (
                     {0 ar : NodeArgs} ->
-                    MaybeNode cfg ar wb1 nm1 Rootless ->
-                    f (MaybeNode cfg ar wb2 nm2 Rootless)
+                    {0 pr : Presence} ->
+                    MaybeNode cfg ar Rootless pr ->
+                    f (MaybeNode cfg ar Rootless pr)
                 ) ->
-                HSnocVectMaybeNode cfg k ars wb1 nm1 ->
-                f (HSnocVectMaybeNode cfg k ars wb2 nm2)
+                HSnocVectMaybeNode cfg k ars prs ->
+                f (HSnocVectMaybeNode cfg k ars prs)
     traverse' g [<] = pure [<]
     traverse' g (xs :< x) = [| traverse' g xs :< g x |]
+
+public export
+data UniqNames : SnocVectPresence k -> Type
+
+public export
+data NameIsNew : UniqNames prs ->
+                 MaybeFilename pr ->
+                 Type
+
+data UniqNames : SnocVectPresence k -> Type where
+    Empty : UniqNames [<]
+    NewName : (ff : UniqNames prs) => (f : MaybeFilename pr) -> (0 _ : NameIsNew ff f) => UniqNames (prs :< pr)
+
+data NameIsNew : UniqNames prs ->
+                 MaybeFilename pr ->
+                 Type where
+    EmptyList : NameIsNew Empty f
+    NewNothing : NameIsNew ff Nothing
+    OldNothing : (0 sub : NameIsNew ff Nothing) => NameIsNew ff (Just newf) -> NameIsNew (NewName @{ff} Nothing @{sub}) (Just newf)
+    OldJust : (0 _ : So $ newf /= f) ->
+              {0 ff : UniqNames prs} ->
+              NameIsNew {prs} ff (Just newf) ->
+              {0 sub : NameIsNew ff (Just f)} ->
+              NameIsNew {prs=prs :< Present} (NewName @{ff} (Just f) @{sub}) (Just newf)
 
 -- TODO: Add upper bound of 268'435'445 clusters
 namespace Node
     public export
-    data Node : NodeCfg -> NodeArgs -> BlobLabel -> NameLabel -> RootLabel -> Type where
+    data Node : NodeCfg -> NodeArgs -> RootLabel -> Type where
         File : (0 clustNZ : IsSucc clustSize) =>
                (meta : Metadata) ->
                {k : Nat} ->
-               Blob k wb ->
-               Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize) @{Relation.reflexive}) wb nm Rootless
+               SnocVectBits8 k ->
+               Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize) @{Relation.reflexive}) Rootless
         Dir : forall clustSize.
               (0 clustNZ : IsSucc clustSize) =>
               (meta : Metadata) ->
               {k : Nat} ->
               {ars : SnocVectNodeArgs k} ->
-              Names k nm ->
-              (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb nm) ->
+              {prs : SnocVectPresence k} ->
+              (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars prs) ->
+              UniqNames prs ->
               Node (MkNodeCfg clustSize) (
                   MkNodeArgs (divCeilNZ (DirentSize * (2 + k)) clustSize) (divCeilNZ (DirentSize * (2 + k)) clustSize + totsum ars) @{lteAddRight (divCeilNZ (DirentSize * (2 + k)) clustSize) {m = totsum ars}}
-              ) wb nm Rootless
+              ) Rootless
         Root : forall clustSize.
                (0 clustNZ : IsSucc clustSize) =>
                {k : Nat} ->
                {ars : SnocVectNodeArgs k} ->
-               Names k nm ->
-               (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars wb nm) ->
+               {prs : SnocVectPresence k} ->
+               (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars prs) ->
+               UniqNames prs ->
                Node (MkNodeCfg clustSize) (
                    let cur' = divCeilNZ (DirentSize * k) clustSize
                    in MkNodeArgs cur' (cur' + totsum ars) @{lteAddRight cur' {m = totsum ars}}
-               ) wb nm Rootful
+               ) Rootful
 
 
 public export
 Filesystem : NodeCfg -> NodeArgs -> Type
-Filesystem cfg ar = Node cfg ar Blobless Nameless Rootful
+Filesystem cfg ar = Node cfg ar Rootful
 
 genValidFilenameChar : Gen MaybeEmpty Bits8
 genValidFilenameChar = elements' $ map cast $ the (List Char) $ ['A'..'Z'] ++ ['0'..'9'] ++ unpack "!#$%&'()-@^_`{}~"
@@ -214,48 +218,54 @@ genFilename : Gen MaybeEmpty Filename
 genFilename = pure $ MkFilename $ !(genPaddedName 1 FilenameLengthName) ++ !(genPaddedName 0 FilenameLengthExt)
 
 public export
-genUniqNames : Fuel ->
-               (Fuel -> Gen MaybeEmpty Bits8) =>
-               (Fuel -> Gen MaybeEmpty Filename) =>
-               (k : Nat) ->
-               Gen MaybeEmpty $ UniqNames k
+genBlob : Gen MaybeEmpty (k ** SnocVectBits8 k)
+genBlob = do
+  k <- elements' $ the (List Nat) [0..MaxBlobSize]
+  blob <- genSnocVectBits8 k
+  pure (k ** blob)
+
+-- public export
+-- genUniqNames : Fuel ->
+--                (Fuel -> Gen MaybeEmpty Filename) =>
+--                (cfg : NodeCfg) ->
+--                (k : Nat) ->
+--                (ars : SnocVectNodeArgs k) ->
+--                (sx : HSnocVectMaybeNode cfg k ars) ->
+--                Gen MaybeEmpty $ UniqNames {cfg} {k} {ars} sx
 
 public export
 genNode : Fuel -> 
-          (Fuel -> Gen MaybeEmpty Bits8) => 
-          (Fuel -> (k : Nat) -> Gen MaybeEmpty (UniqNames k)) =>
+          (Fuel -> Gen MaybeEmpty (k ** SnocVectBits8 k)) => 
+          (Fuel -> Gen MaybeEmpty Filename) =>
           (cfg : NodeCfg) -> 
-          (withBlob : BlobLabel) -> 
-          (nm : NameLabel) -> 
           (fs : RootLabel) -> 
-          Gen MaybeEmpty (ar ** Node cfg ar withBlob nm fs)
+          Gen MaybeEmpty (ar ** Node cfg ar fs)
 
 public export
 genFilesystem : Fuel -> (cfg : NodeCfg) -> Gen MaybeEmpty (ar ** Filesystem cfg ar)
-genFilesystem fuel cfg = genNode fuel @{%search} @{\f => genUniqNames f} cfg Blobless Nameless Rootful
+genFilesystem fuel cfg = genNode fuel @{const genBlob} @{%search} cfg Rootful
 
-fillBlobs' : MaybeNode cfg ar Blobless nm Rootless -> Gen MaybeEmpty $ MaybeNode cfg ar Blobful nm Rootless
-fillBlobs' Nothing = pure Nothing
-fillBlobs' (Just $ Dir meta names entries) = Just <$> Dir meta names <$> assert_total (traverse' fillBlobs' entries)
-fillBlobs' (Just $ File meta _ {k}) = Just <$> File meta <$> BlobSome <$> genSnocVectBits8 k
+-- fillBlobs' : MaybeNode cfg ar Blobless nm Rootless -> Gen MaybeEmpty $ MaybeNode cfg ar Blobful nm Rootless
+-- fillBlobs' Nothing = pure Nothing
+-- fillBlobs' (Just $ Dir meta names entries) = Just <$> Dir meta names <$> assert_total (traverse' fillBlobs' entries)
+-- fillBlobs' (Just $ File meta _ {k}) = Just <$> File meta <$> BlobSome <$> genSnocVectBits8 k
+--
+-- public export
+-- fillBlobs : Node cfg ar Blobless nm Rootful -> Gen MaybeEmpty $ Node cfg ar Blobful nm Rootful
+-- fillBlobs (Root names entries) = Root names <$> (traverse' fillBlobs' entries)
 
-public export
-fillBlobs : Node cfg ar Blobless nm Rootful -> Gen MaybeEmpty $ Node cfg ar Blobful nm Rootful
-fillBlobs (Root names entries) = Root names <$> (traverse' fillBlobs' entries)
-
-
-fillNames' : Fuel -> 
-             MaybeNode cfg ar wb Nameless Rootless -> 
-             Gen MaybeEmpty $ MaybeNode cfg ar wb Nameful Rootless
-fillNames' _ Nothing = pure Nothing
-fillNames' _ (Just (File meta x)) = pure $ Just $ File meta x
-fillNames' fuel (Just (Dir meta _ entries {k})) = pure $ Just $ Dir meta (NamesSome !(genUniqNames fuel k)) !(assert_total $ traverse' (fillNames' fuel) entries)
-
-public export
-fillNames : Fuel -> 
-            Node cfg ar wb Nameless Rootful -> 
-            Gen MaybeEmpty $ Node cfg ar wb Nameful Rootful
-fillNames fuel (Root _ entries {k}) = pure $ Root (NamesSome !(genUniqNames fuel k)) !(traverse' (fillNames' fuel) entries) 
+-- fillNames' : Fuel -> 
+--              MaybeNode cfg ar Nameless Rootless -> 
+--              Gen MaybeEmpty $ MaybeNode cfg ar Nameful Rootless
+-- fillNames' _ Nothing = pure Nothing
+-- fillNames' _ (Just (File meta x)) = pure $ Just $ File meta x
+-- fillNames' fuel (Just (Dir meta _ entries {k})) = pure $ Just $ Dir meta (NamesSome !(genUniqNames fuel k)) !(assert_total $ traverse' (fillNames' fuel) entries)
+--
+-- public export
+-- fillNames : Fuel -> 
+--             Node cfg ar Nameless Rootful -> 
+--             Gen MaybeEmpty $ Node cfg ar Nameful Rootful
+-- fillNames fuel (Root _ entries {k}) = pure $ Root (NamesSome !(genUniqNames fuel k)) !(traverse' (fillNames' fuel) entries) 
 
 
 
@@ -263,10 +273,9 @@ fillNames fuel (Root _ entries {k}) = pure $ Root (NamesSome !(genUniqNames fuel
 %runElab derive "NodeCfg" [Show]
 %runElab derive "Metadata" [Show]
 %runElab derive "NodeArgs" [Show]
-%runElab deriveIndexed "Blob" [Show]
-%runElab deriveParam $ map (\n => PI n allIndices [Show]) ["UniqNames", "Names"]
+-- %runElab deriveIndexed "Blob" [Show]
 %runElab deriveIndexed "SnocVectNodeArgs" [Show]
-%runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HSnocVectMaybeNode"]
+%runElab deriveParam $ map (\n => PI n allIndices [Show]) ["Node", "MaybeNode", "HSnocVectMaybeNode", "UniqNames"]
 
 {-
 Boot sector generation strategy:

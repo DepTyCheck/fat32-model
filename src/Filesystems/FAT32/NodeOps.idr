@@ -15,45 +15,45 @@ import Syntax.IHateParens
 
 
 public export
-setFlags : (cfg : NodeCfg) -> (node : Node cfg ar wb nm fs) -> IndexIn node Rootless dirl -> Metadata -> Node cfg ar wb nm fs
+setFlags : (cfg : NodeCfg) -> (node : Node cfg ar fs) -> IndexIn node Rootless dirl -> Metadata -> Node cfg ar fs
 setFlags cfg@(MkNodeCfg clustSize) node idx meta = indexUpd_ cfg node idx f
-where f : Node cfg ar1 wb nm Rootless -> Node cfg ar1 wb nm Rootless
+where f : Node cfg ar1 Rootless -> Node cfg ar1 Rootless
       f (File _ blob) = File meta blob
-      f (Dir _ names entries) = Dir meta names entries
+      f (Dir _ entries names) = Dir meta entries names
 
 public export
-namesGet : (node : Node cfg ar wb Nameful Rootful) -> (idx : IndexIn node rootl DirI) -> (k ** UniqNames k)
+namesGet : (node : Node cfg ar Rootful) -> (idx : IndexIn node rootl DirI) -> (k ** prs ** UniqNames {k} prs)
 namesGet node idx {ar} with (indexGet node idx)
-  _ | (Evidence _ ((Dir _ (NamesSome names) _ ** _))) = (_ ** names)
-  _ | (Evidence _ ((Root (NamesSome names) _ ** _))) = (_ ** names)
-  namesGet (Root {ars} names xs) (ThereRoot x) {ar=MkNodeArgs _ (_ + totsum ars)} | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
+  _ | (Evidence _ ((Dir _ _ names ** _))) = (_ ** _ ** names)
+  _ | (Evidence _ ((Root _ names ** _))) = (_ ** _ ** names)
+  namesGet (Root {ars} xs names) (ThereRoot idx) {ar=MkNodeArgs _ (_ + totsum ars)} | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
 
 public export
 newDir : (cfg : NodeCfg) ->
-         (node : Node cfg ar wb Nameful Rootful) ->
+         (node : Node cfg ar Rootful) ->
          (idx : IndexIn node rootl DirI) ->
          (name : Filename) ->
-         (nameprf : uncurry NameIsNew .| namesGet node idx .| name) ->
-         (ar' ** Node cfg ar' wb Nameful Rootful)
+         (nameprf : NameIsNew (snd $ snd $ namesGet node idx) (Just name)) ->
+         (ar' ** Node cfg ar' Rootful)
 newDir cfg@(MkNodeCfg clusterSize) node idx name nameprf {ar} with (indexGet node idx)
-  _ | (Evidence _ ((Dir meta' (NamesSome names') sx' ** _))) = indexSet (MkNodeCfg _) node idx (Dir meta' (NamesSome $ NewName @{names'} name @{nameprf}) (sx' :< Just (Dir (MkMetadata False False False False) (NamesSome Empty) [<])))
-  _ | (Evidence _ ((Root (NamesSome names') sx' ** _))) = indexSet (MkNodeCfg _) node idx (Root (NamesSome $ NewName @{names'} name @{nameprf}) (sx' :< Just (Dir (MkMetadata False False False False) (NamesSome Empty) [<])))
-  newDir (MkNodeCfg _) (Root {ars} names xs) (ThereRoot x) _ _ {ar=MkNodeArgs _ (_ + totsum ars)} | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
+  _ | (Evidence _ ((Dir meta' sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Dir meta' (sx' :< Just (Dir (MkMetadata False False False False) [<] Empty)) (NewName @{names'} (Just name) @{nameprf}))
+  _ | (Evidence _ ((Root sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Root (sx' :< Just (Dir (MkMetadata False False False False) [<] Empty)) (NewName @{names'} (Just name) @{nameprf}))
+  newDir (MkNodeCfg _) (Root {ars} xs names) (ThereRoot idx) _ _ {ar=MkNodeArgs _ (_ + totsum ars)} | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
 
 public export
 newFile : (cfg : NodeCfg) ->
-          (node : Node cfg ar Blobful Nameful Rootful) ->
+          (node : Node cfg ar Rootful) ->
           (idx : IndexIn node rootl DirI) ->
           (name : Filename) ->
-          (nameprf : uncurry NameIsNew .| namesGet node idx .| name) ->
-          (ar' ** Node cfg ar' Blobful Nameful Rootful)
+          (nameprf : NameIsNew (snd $ snd $ namesGet node idx) (Just name)) ->
+          (ar' ** Node cfg ar' Rootful)
 newFile cfg@(MkNodeCfg clusterSize) node idx name nameprf {ar} with (indexGet node idx)
-  _ | (Evidence _ ((Dir meta' (NamesSome names') sx' ** _))) = indexSet (MkNodeCfg _) node idx (Dir meta' (NamesSome $ NewName @{names'} name @{nameprf}) (sx' :< Just (File (MkMetadata False False False False) (BlobSome [<]))))
-  _ | (Evidence _ ((Root (NamesSome names') sx' ** _))) = indexSet (MkNodeCfg _) node idx (Root (NamesSome $ NewName @{names'} name @{nameprf}) (sx' :< Just (File (MkMetadata False False False False) (BlobSome [<]))))
-  newFile (MkNodeCfg _) (Root {ars} names xs) (ThereRoot x) _ _ {ar=MkNodeArgs _ (_ + totsum ars)} | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
+  _ | (Evidence _ ((Dir meta' sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Dir meta' (sx' :< Just (File (MkMetadata False False False False) [<])) (NewName @{names'} (Just name) @{nameprf}))
+  _ | (Evidence _ ((Root sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Root (sx' :< Just (File (MkMetadata False False False False) [<])) (NewName @{names'} (Just name) @{nameprf}))
+  newFile (MkNodeCfg _) (Root {ars} xs names) (ThereRoot idx) _ _ {ar=MkNodeArgs _ (_ + totsum ars)} | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
 
 public export
-data NodeOps : (cfg : NodeCfg) -> (node : Node cfg ar Blobful Nameful Rootful) -> Type where
+data NodeOps : (cfg : NodeCfg) -> (node : Node cfg ar Rootful) -> Type where
     Nop : NodeOps cfg node
     GetFlags : (idx : IndexIn node rootl dirl) ->
                (cont : NodeOps cfg node) ->
@@ -64,12 +64,12 @@ data NodeOps : (cfg : NodeCfg) -> (node : Node cfg ar Blobful Nameful Rootful) -
                NodeOps cfg node
     NewDir   : (idx : IndexIn node rootl DirI) ->
                (name : Filename) ->
-               (nameprf : uncurry NameIsNew .| namesGet node idx .| name) ->
+               (nameprf : NameIsNew (snd $ snd $ namesGet node idx) (Just name)) ->
                (cont : NodeOps cfg (snd $ newDir cfg node idx name nameprf)) ->
                NodeOps cfg node
     NewFile  : (idx : IndexIn node rootl DirI) ->
                (name : Filename) ->
-               (nameprf : uncurry NameIsNew .| namesGet node idx .| name) ->
+               (nameprf : NameIsNew (snd $ snd $ namesGet node idx) (Just name)) ->
                (cont : NodeOps cfg (snd $ newFile cfg node idx name nameprf)) ->
                NodeOps cfg node
 
@@ -89,7 +89,7 @@ genNodeOps : Fuel ->
              (Fuel -> Gen MaybeEmpty Filename) =>
              (cfg : NodeCfg) ->
              (ar : NodeArgs) ->
-             (node : Node cfg ar Blobful Nameful Rootful) ->
+             (node : Node cfg ar Rootful) ->
              Gen MaybeEmpty (NodeOps cfg node)
 
 

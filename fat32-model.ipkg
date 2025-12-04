@@ -28,7 +28,7 @@ depends = deptycheck
 modules = Filesystems.FAT32
         , Filesystems.FAT32.Image
         , Filesystems.FAT32.Derived.Node
-        , Filesystems.FAT32.Derived.UniqNames
+        , Filesystems.FAT32.Derived.NodeOps
         , Data.Monomorphic.Vect
 
 -- main file (i.e. file to load at REPL)

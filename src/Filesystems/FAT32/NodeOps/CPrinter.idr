@@ -49,15 +49,15 @@ footer = #"""
 
 
 public export
-index2UnixPath : (node : Node cfg ar wb Nameful fs) -> (idx : IndexIn node rootl dirl) -> String
+index2UnixPath : (node : Node cfg ar fs) -> (idx : IndexIn node rootl dirl) -> String
 
-index2UnixPath' : (names : UniqNames k) -> (xs : HSnocVectMaybeNode cfg k ars wb Nameful) -> (idx : IndexIn xs dirl) -> String 
-index2UnixPath' (NewName y) (_ :< Just x) (Here idx) = "\{y}\{index2UnixPath x idx}"
-index2UnixPath' (NewName {ff} f) (xs :< x) (There idx) = index2UnixPath' ff xs idx
+index2UnixPath' : (sx : HSnocVectMaybeNode cfg k ars prs) -> (names : UniqNames prs) -> (idx : IndexIn sx dirl) -> String 
+index2UnixPath' (_ :< Just x) (NewName $ Just y) (Here idx) = "\{y}\{index2UnixPath x idx}"
+index2UnixPath' (sx :< x) (NewName {ff} f) (There idx) = index2UnixPath' sx ff idx
 
 index2UnixPath .(Root _ _ @{_}) HereRoot = "./"
-index2UnixPath (Root {ars} (NamesSome names) xs) (ThereRoot idx) {ar=MkNodeArgs _ (_ + totsum ars)} = "./\{index2UnixPath' names xs idx}"
-index2UnixPath (Dir {ars} _ (NamesSome names) xs) (ThereDir idx) {ar=MkNodeArgs _ (_ + totsum ars)} = "/\{index2UnixPath' names xs idx}"
+index2UnixPath (Root {ars}sx names) (ThereRoot idx) {ar=MkNodeArgs _ (_ + totsum ars)} = "./\{index2UnixPath' sx names idx}"
+index2UnixPath (Dir {ars} _ sx names) (ThereDir idx) {ar=MkNodeArgs _ (_ + totsum ars)} = "/\{index2UnixPath' sx names idx}"
 index2UnixPath .(File _ _ @{_}) HereFile = ""
 index2UnixPath .(Dir _ _ _ @{_}) HereDir = "/"
 index2UnixPath .(File _ _ @{_}) (ThereDir _) impossible
@@ -67,7 +67,7 @@ bool True = "true"
 bool False = "false"
 
 public export
-printCOps : Nat -> Nat -> {cfg : NodeCfg} -> (node : Node cfg ar Blobful Nameful Rootful) -> NodeOps cfg node -> List String
+printCOps : Nat -> Nat -> {cfg : NodeCfg} -> (node : Node cfg ar Rootful) -> NodeOps cfg node -> List String
 printCOps i len root (GetFlags idx cont) with (indexGet root idx)
     _ | (Evidence _ ((File meta _) ** prf)) = let path = index2UnixPath root idx in #"""
           {
@@ -163,7 +163,7 @@ printCOps i len root (NewFile idx name nameprf cont) = let path = index2UnixPath
             errno = 0;
             int fd = openat(rootfd, "\#{path}", O_PATH | O_DIRECTORY);
             panic_on(fd < 0);
-            int res = openat(rootfd, "\#{name}", O_CREAT | O_EXCL | O_WRONLY);
+            int res = openat(fd, "\#{name}", O_CREAT | O_EXCL | O_WRONLY);
             panic_on(res < 0);
             res = close(fd);
             panic_on(res < 0);
@@ -173,5 +173,5 @@ printCOps i len root (NewFile idx name nameprf cont) = let path = index2UnixPath
 printCOps _ _ _ Nop = [#"puts("All done!");\#n"#]
 
 public export
-buildCProg : (cfg : NodeCfg) -> (root : Node cfg ar Blobful Nameful Rootful) -> (ops : NodeOps cfg root) -> String
+buildCProg : (cfg : NodeCfg) -> (root : Node cfg ar Rootful) -> (ops : NodeOps cfg root) -> String
 buildCProg cfg root ops = let len = length ops in header len ++ concat (printCOps 1 len root ops) ++ footer
