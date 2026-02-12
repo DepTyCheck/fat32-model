@@ -9,6 +9,7 @@ import Filesystems.FAT32.Derived.NodeOps
 import Filesystems.FAT32.NodeOps
 import Filesystems.FAT32.NodeOps.CPrinter
 import Filesystems.FAT32.FSStructs
+import Filesystems.FAT32.Pretty
 import System.Random.Pure.StdGen
 import System
 import System.GetOpts
@@ -37,6 +38,8 @@ record Config (m : Type -> Type) where
     seed       : m Bits64
     minClust   : m Nat
     printNode  : m Bool
+    printFs    : m Bool
+    printCmap  : m Bool
     output     : m String
     help       : m Bool
 
@@ -50,6 +53,8 @@ emptyCfg = MkConfig
     , seed       = Nothing
     , minClust   = Nothing
     , printNode  = Nothing
+    , printFs    = Nothing
+    , printCmap  = Nothing
     , output     = Nothing
     , help       = Nothing
     }
@@ -65,6 +70,8 @@ defaultCfg = MkConfig
     , seed       = 1450262
     , minClust   = 0
     , printNode  = False
+    , printFs    = False
+    , printCmap  = False
     , output     = "out.img"
     , help       = False
     }
@@ -105,7 +112,9 @@ optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeCfg "<size>") "clust
        , MkOpt ['s'] ["seed"] (ReqArg' parseSeed "<seed>") "seed"
        , MkOpt ['m'] ["minclust"] (ReqArg' parseMinClust "<minclust>") "minimum amount of data clusters"
        -- , MkOpt ['q'] ["quiet", "no-print"] (NoArg $ {printGen := Just False} emptyCfg) "don't print the generated value"
-       , MkOpt ['B'] ["print-node"] (NoArg $ {printNode := Just True} emptyCfg) "print the generated Node"
+       , MkOpt ['N'] ["print-node"] (NoArg $ {printNode := Just True} emptyCfg) "print the generated Node"
+       , MkOpt ['F'] ["print-fs"] (NoArg $ {printFs := Just True} emptyCfg) "pretty-print the generated filesystem tree"
+       , MkOpt ['C'] ["print-cmap"] (NoArg $ {printCmap := Just True} emptyCfg) "print the generated cluster map"
        , MkOpt ['h'] ["help"] (NoArg $ {help := Just True} emptyCfg) "print usage information"
        , MkOpt ['o'] ["output"] (ReqArg' parseOut "<output>") "output image filename"
        ]
@@ -122,9 +131,10 @@ main = do
     when cfg.help $ do
         putStrLn usage
         exitSuccess
-    ((ar ** nodebn), image, size) <- genImageIO cfg.seed cfg.fuel1 cfg.params cfg.minClust cfg.printNode
+    ((ar ** nodebn), image, size) <- genImageIO cfg.seed cfg.fuel1 cfg.params cfg.minClust cfg.printNode cfg.printCmap
     Right () <- writeBufferToFile (cfg.output ++ ".img") image size
         | Left err => die "file error: \{show err}"
+    when cfg.printFs $ putStrLn $ printTree nodebn
     putStrLn "generating NodeOps..."
     let Just ops = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genNodeOps cfg.fuel2 cfg.params ar nodebn
         | Nothing => die "failed to generate NodeOps"

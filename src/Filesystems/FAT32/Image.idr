@@ -435,8 +435,8 @@ buildImage bdata bsect fsinfo node cmap image = do
 --         pure $ (unsafeFromMBuffer image, cast tsz)
 
 public export
-genImageIO : (seed : Bits64) -> (fuel1 : Fuel) -> (cfg : NodeCfg) -> (minClust : Nat) -> Bool -> IO ((ar ** Node cfg ar Rootful), Buffer, Int)
-genImageIO seed fuel1 (MkNodeCfg clustSize @{clustNZ}) minClust printNode = do
+genImageIO : (seed : Bits64) -> (fuel1 : Fuel) -> (cfg : NodeCfg) -> (minClust : Nat) -> Bool -> Bool -> IO ((ar ** Node cfg ar Rootful), Buffer, Int)
+genImageIO seed fuel1 (MkNodeCfg clustSize @{clustNZ}) minClust printNode printCmap = do
     putStrLn "generating Node..."
     let (Just (ar@(MkNodeArgs cur tot) ** nodebn)) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genFilesystem fuel1 $ MkNodeCfg clustSize
         | Nothing => die "failed to generate Node"
@@ -457,6 +457,7 @@ genImageIO seed fuel1 (MkNodeCfg clustSize @{clustNZ}) minClust printNode = do
     putStrLn "generating cmap..."
     let (Just cvect) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genvect
         | Nothing => die "failed to generate cmap"
+    when printCmap $ printLn cvect
     let cmap = array cvect
     let root = 
         case isLT 0 tot of
