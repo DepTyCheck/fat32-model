@@ -37,7 +37,7 @@ allFins'' 1 = [< FZ]
 allFins'' (S $ S k) = let sx := allFins'' (S k) in believe_me sx :< FS (deah sx)
 
 allFins' : (n : Nat) -> Vect n (Fin n)
-allFins' n = asVect $ allFins'' n
+allFins' n = replace {p = \x => Vect x (Fin n)} (plusZeroRightNeutral _) $ allFins'' n <>> []
 
 public export
 genMap : (k : Nat) -> (n : Nat) -> (0 _ : IsSucc k) => Gen MaybeEmpty $ Vect k (Fin $ k + n)
