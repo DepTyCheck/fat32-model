@@ -24,9 +24,9 @@ where f : Node cfg ar1 Rootless -> Node cfg ar1 Rootless
 public export
 namesGet : (node : Node cfg ar Rootful) -> (idx : IndexIn node rootl DirI) -> (k ** prs ** UniqNames {k} prs)
 namesGet node idx {ar} with (indexGet node idx)
-  _ | (Evidence _ ((Dir _ _ names ** _))) = (_ ** _ ** names)
-  _ | (Evidence _ ((Root _ names ** _))) = (_ ** _ ** names)
-  namesGet (Root {ars} xs names) (ThereRoot idx) {ar=MkNodeArgs _ (_ + totsum ars)} | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
+  _ | (Evidence _ (Dir _ _ names ** _)) = (_ ** _ ** names)
+  _ | (Evidence _ (Root _ names ** _)) = (_ ** _ ** names)
+  _ | (Evidence _ (File _ _ ** ati')) = void $ uninhabited ati'
 
 public export
 newDir : (cfg : NodeCfg) ->
@@ -38,7 +38,7 @@ newDir : (cfg : NodeCfg) ->
 newDir cfg@(MkNodeCfg clusterSize) node idx name nameprf {ar} with (indexGet node idx)
   _ | (Evidence _ ((Dir meta' sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Dir meta' (sx' :< Just (Dir (MkMetadata False False False False) [<] Empty)) (NewName @{names'} (Just name) @{nameprf}))
   _ | (Evidence _ ((Root sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Root (sx' :< Just (Dir (MkMetadata False False False False) [<] Empty)) (NewName @{names'} (Just name) @{nameprf}))
-  newDir (MkNodeCfg _) (Root {ars} xs names) (ThereRoot idx) _ _ {ar=MkNodeArgs _ (_ + totsum ars)} | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
+  _ | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
 
 public export
 newFile : (cfg : NodeCfg) ->
@@ -50,7 +50,7 @@ newFile : (cfg : NodeCfg) ->
 newFile cfg@(MkNodeCfg clusterSize) node idx name nameprf {ar} with (indexGet node idx)
   _ | (Evidence _ ((Dir meta' sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Dir meta' (sx' :< Just (File (MkMetadata False False False False) [<])) (NewName @{names'} (Just name) @{nameprf}))
   _ | (Evidence _ ((Root sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Root (sx' :< Just (File (MkMetadata False False False False) [<])) (NewName @{names'} (Just name) @{nameprf}))
-  newFile (MkNodeCfg _) (Root {ars} xs names) (ThereRoot idx) _ _ {ar=MkNodeArgs _ (_ + totsum ars)} | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
+  _ | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
 
 public export
 data NodeOps : (cfg : NodeCfg) -> (node : Node cfg ar Rootful) -> Type where
