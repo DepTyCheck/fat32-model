@@ -52,8 +52,8 @@ public export
 index2UnixPath : (node : Node cfg ar fs) -> (idx : IndexIn node rootl dirl) -> String
 
 index2UnixPath' : (sx : HSnocVectMaybeNode cfg k ars prs) -> (names : UniqNames prs) -> (idx : IndexIn sx dirl) -> String 
-index2UnixPath' (_ :< Just x) (NewName $ Just y) (Here idx) = "\{y}\{index2UnixPath x idx}"
-index2UnixPath' (sx :< x) (NewName {ff} f) (There idx) = index2UnixPath' sx ff idx
+index2UnixPath' (_ :< Just x) (NewName ff $ Just y) (Here idx) = "\{y}\{index2UnixPath x idx}"
+index2UnixPath' (sx :< x) (NewName ff f) (There idx) = index2UnixPath' sx ff idx
 
 index2UnixPath .(Root _ _ @{_}) HereRoot = "./"
 index2UnixPath (Root {ars}sx names) (ThereRoot idx) {ar=MkNodeArgs _ (_ + totsum ars)} = "./\{index2UnixPath' sx names idx}"

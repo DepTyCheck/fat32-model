@@ -145,19 +145,19 @@ data NameIsNew : UniqNames prs ->
 
 data UniqNames : SnocVectPresence k -> Type where
     Empty : UniqNames [<]
-    NewName : (ff : UniqNames prs) => (f : MaybeFilename pr) -> (0 _ : NameIsNew ff f) => UniqNames (prs :< pr)
+    NewName : (ff : UniqNames prs) -> (f : MaybeFilename pr) -> (0 _ : NameIsNew ff f) => UniqNames (prs :< pr)
 
 data NameIsNew : UniqNames prs ->
                  MaybeFilename pr ->
                  Type where
     EmptyList : NameIsNew Empty f
     NewNothing : NameIsNew ff Nothing
-    OldNothing : (0 sub : NameIsNew ff Nothing) => NameIsNew ff (Just newf) -> NameIsNew (NewName @{ff} Nothing @{sub}) (Just newf)
+    OldNothing : (0 sub : NameIsNew ff Nothing) => NameIsNew ff (Just newf) -> NameIsNew (NewName ff Nothing @{sub}) (Just newf)
     OldJust : (0 _ : So $ newf /= f) ->
               {0 ff : UniqNames prs} ->
               NameIsNew {prs} ff (Just newf) ->
               {0 sub : NameIsNew ff (Just f)} ->
-              NameIsNew {prs=prs :< Present} (NewName @{ff} (Just f) @{sub}) (Just newf)
+              NameIsNew {prs=prs :< Present} (NewName ff (Just f) @{sub}) (Just newf)
 
 -- TODO: Add upper bound of 268'435'445 clusters
 namespace Node

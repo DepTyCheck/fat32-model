@@ -36,8 +36,8 @@ newDir : (cfg : NodeCfg) ->
          (nameprf : NameIsNew (snd $ snd $ namesGet node idx) (Just name)) ->
          (ar' ** Node cfg ar' Rootful)
 newDir cfg@(MkNodeCfg clusterSize) node idx name nameprf {ar} with (indexGet node idx)
-  _ | (Evidence _ ((Dir meta' sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Dir meta' (sx' :< Just (Dir (MkMetadata False False False False) [<] Empty)) (NewName @{names'} (Just name) @{nameprf}))
-  _ | (Evidence _ ((Root sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Root (sx' :< Just (Dir (MkMetadata False False False False) [<] Empty)) (NewName @{names'} (Just name) @{nameprf}))
+  _ | (Evidence _ ((Dir meta' sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Dir meta' (sx' :< Just (Dir (MkMetadata False False False False) [<] Empty)) (NewName names' (Just name) @{nameprf}))
+  _ | (Evidence _ ((Root sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Root (sx' :< Just (Dir (MkMetadata False False False False) [<] Empty)) (NewName names' (Just name) @{nameprf}))
   _ | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
 
 public export
@@ -48,8 +48,8 @@ newFile : (cfg : NodeCfg) ->
           (nameprf : NameIsNew (snd $ snd $ namesGet node idx) (Just name)) ->
           (ar' ** Node cfg ar' Rootful)
 newFile cfg@(MkNodeCfg clusterSize) node idx name nameprf {ar} with (indexGet node idx)
-  _ | (Evidence _ ((Dir meta' sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Dir meta' (sx' :< Just (File (MkMetadata False False False False) [<])) (NewName @{names'} (Just name) @{nameprf}))
-  _ | (Evidence _ ((Root sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Root (sx' :< Just (File (MkMetadata False False False False) [<])) (NewName @{names'} (Just name) @{nameprf}))
+  _ | (Evidence _ ((Dir meta' sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Dir meta' (sx' :< Just (File (MkMetadata False False False False) [<])) (NewName names' (Just name) @{nameprf}))
+  _ | (Evidence _ ((Root sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Root (sx' :< Just (File (MkMetadata False False False False) [<])) (NewName names' (Just name) @{nameprf}))
   _ | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
 
 public export

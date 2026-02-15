@@ -151,9 +151,9 @@ mapNodesAndNamesToDirents : {clustSize : Nat} ->
            (0 clsBounds : LTE (currClust + totsum ars) cls) =>
            SnocVectBits8 (DirentSize * k)
 mapNodesAndNamesToDirents [<] Empty _ _ = [<]
-mapNodesAndNamesToDirents ((:<) sx x {ar=MkNodeArgs cur 0} {k=k'}) (NewName @{ff} f) cmap currClust =
+mapNodesAndNamesToDirents ((:<) sx x {ar=MkNodeArgs cur 0} {k=k'}) (NewName ff f) cmap currClust =
     replace {p = SnocVectBits8} (plusCommutative (DirentSize * k') DirentSize `trans` (sym $ multRightSuccPlus DirentSize k')) $ mapNodesAndNamesToDirents sx ff cmap currClust <>< makeDirent x f 0
-mapNodesAndNamesToDirents ((:<) sx x {ar=MkNodeArgs cur tot@(S tot')} {k=k'} {ars=ars'}) (NewName @{ff} f) cmap currClust =
+mapNodesAndNamesToDirents ((:<) sx x {ar=MkNodeArgs cur tot@(S tot')} {k=k'} {ars=ars'}) (NewName ff f) cmap currClust =
     replace {p = SnocVectBits8} (plusCommutative (DirentSize * k') DirentSize `trans` (sym $ multRightSuccPlus DirentSize k')) $ mapNodesAndNamesToDirents sx ff cmap (currClust + tot) @{%search} @{rewrite sym $ plusAssociative currClust tot (totsum ars') in clsBounds} <>< makeDirent x f (2 + (finToNat $ atNat cmap currClust @{(rewrite sym $ plusSuccRightSucc currClust (tot' + totsum ars') in lteAddRight (S currClust) {m = tot' + totsum ars'}) `transitive` clsBounds}))
 
 public export

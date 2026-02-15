@@ -25,8 +25,8 @@ convertNode (Dir meta ents names) = Dir meta (convertEnts ents names [])
 convertNode (Root ents names) = Dir (MkMetadata False False False False) (convertEnts ents names [])
 
 convertEnts [<] Empty acc = acc
-convertEnts (x :< Nothing) (NewName @{ff} Nothing) acc = convertEnts x ff acc
-convertEnts (x :< (Just y)) (NewName @{ff} (Just f)) acc = convertEnts x ff ((convertNode y, "\{f}") :: acc)
+convertEnts (x :< Nothing) (NewName ff Nothing) acc = convertEnts x ff acc
+convertEnts (x :< (Just y)) (NewName ff (Just f)) acc = convertEnts x ff ((convertNode y, "\{f}") :: acc)
 
 sortNode : AbstractPrintableNode -> AbstractPrintableNode
 sortNode nd@(File meta blob) = nd
