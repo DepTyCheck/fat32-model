@@ -435,10 +435,17 @@ buildImage bdata bsect fsinfo node cmap image = do
 --         pure $ (unsafeFromMBuffer image, cast tsz)
 
 public export
-genImageIO : (seed : Bits64) -> (fuel1 : Fuel) -> (cfg : NodeCfg) -> (minClust : Nat) -> Bool -> Bool -> IO ((ar ** Node cfg ar Rootful), Buffer, Int)
-genImageIO seed fuel1 (MkNodeCfg clustSize @{clustNZ}) minClust printNode printCmap = do
+genImageIO : (seed : Bits64) ->
+             (fuel1 : Fuel) ->
+             (cfg : NodeCfg) ->
+             (minClust : Nat) ->
+             (blobLimit : Nat) ->
+             (printNode : Bool) ->
+             (printCmap : Bool) ->
+             IO ((ar ** Node cfg ar Rootful), Buffer, Int)
+genImageIO seed fuel1 (MkNodeCfg clustSize @{clustNZ}) minClust blobLimit printNode printCmap = do
     putStrLn "generating Node..."
-    let (Just (ar@(MkNodeArgs cur tot) ** nodebn)) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genFilesystem fuel1 $ MkNodeCfg clustSize
+    let (Just (ar@(MkNodeArgs cur tot) ** nodebn)) = runIdentity $ pick @{ConstSeed $ mkStdGen seed} $ genFilesystem fuel1 (MkNodeCfg clustSize) blobLimit
         | Nothing => die "failed to generate Node"
     when printNode $ printLn nodebn
     -- putStrLn "generating NameTree..."

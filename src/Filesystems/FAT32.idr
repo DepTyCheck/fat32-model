@@ -34,10 +34,6 @@ namespace Constants
     FilenameLength : Nat
     FilenameLength = FilenameLengthName + FilenameLengthExt
 
-    public export
-    MaxBlobSize : Nat
-    MaxBlobSize = 1024
-
 public export
 data RootLabel = Rootful | Rootless
 
@@ -218,9 +214,9 @@ genFilename : Gen MaybeEmpty Filename
 genFilename = pure $ MkFilename $ !(genPaddedName 1 FilenameLengthName) ++ !(genPaddedName 0 FilenameLengthExt)
 
 public export
-genBlob : Gen MaybeEmpty (k ** SnocVectBits8 k)
-genBlob = do
-  k <- elements' $ the (List Nat) [0..MaxBlobSize]
+genBlob : (blobLimit : Nat) -> Gen MaybeEmpty (k ** SnocVectBits8 k)
+genBlob blobLimit = do
+  k <- elements' $ the (List Nat) [0..blobLimit]
   blob <- genSnocVectBits8 k
   pure (k ** blob)
 
@@ -242,8 +238,8 @@ genNode : Fuel ->
           Gen MaybeEmpty (ar ** Node cfg ar fs)
 
 public export
-genFilesystem : Fuel -> (cfg : NodeCfg) -> Gen MaybeEmpty (ar ** Filesystem cfg ar)
-genFilesystem fuel cfg = genNode fuel @{const genBlob} @{%search} cfg Rootful
+genFilesystem : Fuel -> (cfg : NodeCfg) -> (blobLimit : Nat) -> Gen MaybeEmpty (ar ** Filesystem cfg ar)
+genFilesystem fuel cfg blobLimit = genNode fuel @{const $ genBlob blobLimit} @{%search} cfg Rootful
 
 -- fillBlobs' : MaybeNode cfg ar Blobless nm Rootless -> Gen MaybeEmpty $ MaybeNode cfg ar Blobful nm Rootless
 -- fillBlobs' Nothing = pure Nothing

@@ -37,6 +37,7 @@ record Config (m : Type -> Type) where
     fuel2      : m Fuel
     seed       : m Bits64
     minClust   : m Nat
+    blobLimit  : m Nat
     printNode  : m Bool
     printFs    : m Bool
     printCmap  : m Bool
@@ -52,6 +53,7 @@ emptyCfg = MkConfig
     , fuel2      = Nothing
     , seed       = Nothing
     , minClust   = Nothing
+    , blobLimit  = Nothing
     , printNode  = Nothing
     , printFs    = Nothing
     , printCmap  = Nothing
@@ -69,6 +71,7 @@ defaultCfg = MkConfig
     , fuel2      = limit 10
     , seed       = 1450262
     , minClust   = 0
+    , blobLimit  = 1024
     , printNode  = False
     , printFs    = False
     , printCmap  = False
@@ -94,6 +97,9 @@ parseSeed s = pure $ {seed := Just $ cast !(parseNat s)} emptyCfg
 parseMinClust : String -> Either String $ Config Maybe
 parseMinClust s = pure $ {minClust := Just !(parseNat s)} emptyCfg
 
+parseBlobLimit : String -> Either String $ Config Maybe
+parseBlobLimit s = pure $ {blobLimit := Just !(parseNat s)} emptyCfg
+
 parseOut : String -> Either String $ Config Maybe
 parseOut s = pure $ {output := Just s} emptyCfg
 
@@ -111,6 +117,7 @@ optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeCfg "<size>") "clust
        -- , MkOpt ['3'] ["fuel3"] (ReqArg' parseFuel3 "<fuel3>") "fuel for the cmap generator"
        , MkOpt ['s'] ["seed"] (ReqArg' parseSeed "<seed>") "seed"
        , MkOpt ['m'] ["minclust"] (ReqArg' parseMinClust "<minclust>") "minimum amount of data clusters"
+       , MkOpt ['b'] ["blob-limit"] (ReqArg' parseBlobLimit "<blob-limit>") "maximum blob size"
        -- , MkOpt ['q'] ["quiet", "no-print"] (NoArg $ {printGen := Just False} emptyCfg) "don't print the generated value"
        , MkOpt ['N'] ["print-node"] (NoArg $ {printNode := Just True} emptyCfg) "print the generated Node"
        , MkOpt ['F'] ["print-fs"] (NoArg $ {printFs := Just True} emptyCfg) "pretty-print the generated filesystem tree"
@@ -131,7 +138,7 @@ main = do
     when cfg.help $ do
         putStrLn usage
         exitSuccess
-    ((ar ** nodebn), image, size) <- genImageIO cfg.seed cfg.fuel1 cfg.params cfg.minClust cfg.printNode cfg.printCmap
+    ((ar ** nodebn), image, size) <- genImageIO cfg.seed cfg.fuel1 cfg.params cfg.minClust cfg.blobLimit cfg.printNode cfg.printCmap
     Right () <- writeBufferToFile (cfg.output ++ ".img") image size
         | Left err => die "file error: \{show err}"
     when cfg.printFs $ putStrLn $ printTree nodebn
