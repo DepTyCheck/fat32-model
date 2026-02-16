@@ -191,7 +191,7 @@ forNodesAndNameTrees_ [<] currClust parentPhys cmap dataOffset fatOffset image =
 forNodesAndNameTrees_ ((:<) sx (Just x) {ar=MkNodeArgs cur tot @{ctprf}} {ars=ars'}) currClust parentPhys cmap dataOffset fatOffset image = do
     serializeNode x currClust parentPhys cmap dataOffset fatOffset image @{%search} @{plusLteMonotoneLeft currClust _ _ (totsumLTE {cur} {ctprf}) `transitive` clsBounds}
     forNodesAndNameTrees_ sx (currClust + tot) parentPhys cmap dataOffset fatOffset image @{%search} @{rewrite sym $ plusAssociative currClust tot (totsum ars') in clsBounds}
-forNodesAndNameTrees_ ((:<) sx Nothing {ar=MkNodeArgs cur tot @{ctprf}} {ars=ars'}) currClust parentPhys cmap dataOffset fatOffset image = forNodesAndNameTrees_ sx (currClust + tot) parentPhys cmap dataOffset fatOffset image @{%search} @{rewrite sym $ plusAssociative currClust tot (totsum ars') in clsBounds}
+forNodesAndNameTrees_ ((:<) sx Nothing {ars=ars'}) currClust parentPhys cmap dataOffset fatOffset image = forNodesAndNameTrees_ sx (currClust + 0) parentPhys cmap dataOffset fatOffset image @{%search} @{rewrite sym $ plusAssociative currClust 0 (totsum ars') in clsBounds}
 
 
 serializeNode (File meta blob {k}) currClust _ cmap dataOffset fatOffset image = 

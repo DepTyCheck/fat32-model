@@ -83,7 +83,7 @@ namespace Node
 namespace MaybeNode
     public export
     data MaybeNode : NodeCfg -> NodeArgs -> RootLabel -> Presence -> Type where
-        Nothing : MaybeNode cfg ar fs Absent
+        Nothing : MaybeNode cfg (MkNodeArgs 0 0 @{LTEZero}) fs Absent
         Just : Node cfg ar fs -> MaybeNode cfg ar fs Present
 
     public export
