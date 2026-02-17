@@ -80,7 +80,7 @@ dotdotDirent cnum with (repr32' $ cast cnum)
 
 -- TODO: date and time generation
 -- TODO: proper volume labels
-makeDirent : {clustSize : Nat} -> (0 clustNZ : IsSucc clustSize) => (node : MaybeNode (MkNodeCfg clustSize) (MkNodeArgs cur tot @{ctprf}) Rootless pr) -> MaybeFilename pr -> (clustNum : Nat) -> VectBits8 DirentSize
+makeDirent : {clustSize : Nat} -> (0 clustNZ : IsSucc clustSize) => (node : MaybeNode (MkNodeCfg clustSize) (MkNodeArgs cur tot @{ctprf}) pr) -> MaybeFilename pr -> (clustNum : Nat) -> VectBits8 DirentSize
 makeDirent node fname cnum with (repr32' $ cast cnum)
     makeDirent (Just $ File meta x {k=0}) (Just $ MkFilename $ name) clustNum | (b0::b1::b2::b3::[]) = name ++ serializeMeta meta :: replicate _ 0
     makeDirent (Just $ File meta x {k=S k'}) (Just $ MkFilename $ name) clustNum | (b0::b1::b2::b3::[]) = name ++ serializeMeta meta :: replicate 8 0 ++ [b2, b3] ++ replicate 4 0 ++ [b0, b1] ++ repr32' (cast $ S k')

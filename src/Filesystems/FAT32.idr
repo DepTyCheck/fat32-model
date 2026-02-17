@@ -78,12 +78,12 @@ namespace Node
 
 namespace MaybeNode
     public export
-    data MaybeNode : NodeCfg -> NodeArgs -> RootLabel -> Presence -> Type where
-        Nothing : MaybeNode cfg (MkNodeArgs 0 0 @{LTEZero}) fs Absent
-        Just : Node cfg ar fs -> MaybeNode cfg ar fs Present
+    data MaybeNode : NodeCfg -> NodeArgs -> Presence -> Type where
+        Nothing : MaybeNode cfg (MkNodeArgs 0 0 @{LTEZero}) Absent
+        Just : Node cfg ar Rootless -> MaybeNode cfg ar Present
 
     public export
-    maybe : b -> MaybeNode cfg ar fs pr -> (Node cfg ar fs -> b) -> b
+    maybe : b -> MaybeNode cfg ar pr -> (Node cfg ar Rootless -> b) -> b
     maybe x Nothing f = x
     maybe x (Just y) f = f y
 
@@ -115,7 +115,7 @@ namespace HSnocVectMaybeNode
         Lin : HSnocVectMaybeNode cfg 0 [<] [<]
         (:<) : {ar : NodeArgs} ->
                HSnocVectMaybeNode cfg k ars prs ->
-               MaybeNode cfg ar Rootless pr ->
+               MaybeNode cfg ar pr ->
                HSnocVectMaybeNode cfg (S k) (ars :< ar) (prs :< pr)
 
     public export
@@ -123,8 +123,8 @@ namespace HSnocVectMaybeNode
                 (
                     {0 ar : NodeArgs} ->
                     {0 pr : Presence} ->
-                    MaybeNode cfg ar Rootless pr ->
-                    f (MaybeNode cfg ar Rootless pr)
+                    MaybeNode cfg ar pr ->
+                    f (MaybeNode cfg ar pr)
                 ) ->
                 HSnocVectMaybeNode cfg k ars prs ->
                 f (HSnocVectMaybeNode cfg k ars prs)
