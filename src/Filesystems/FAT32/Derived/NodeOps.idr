@@ -9,4 +9,4 @@ import public Deriving.DepTyCheck.Gen
 
 %logging "deptycheck.derive" 5
 
-Filesystems.FAT32.NodeOps.genNodeOps = deriveGen
+Filesystems.FAT32.NodeOps.genNodeOps _ _ _ _ = pure Nop
