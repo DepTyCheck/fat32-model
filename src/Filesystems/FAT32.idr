@@ -114,8 +114,8 @@ namespace HSnocVectMaybeNode
     data HSnocVectMaybeNode : NodeCfg -> (k : Nat) -> SnocVectNodeArgs k -> SnocVectPresence k -> Type where
         Lin : HSnocVectMaybeNode cfg 0 [<] [<]
         (:<) : {ar : NodeArgs} ->
-               HSnocVectMaybeNode cfg k ars prs ->
-               MaybeNode cfg ar pr ->
+               (sp : HSnocVectMaybeNode cfg k ars prs) ->
+               (p : MaybeNode cfg ar pr) ->
                HSnocVectMaybeNode cfg (S k) (ars :< ar) (prs :< pr)
 
     public export

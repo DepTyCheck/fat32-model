@@ -1,11 +1,17 @@
 module Filesystems.FAT32.Gen
 
 import Filesystems.FAT32
+import Deriving.DepTyCheck.Gen.Tuning
 
 %default total
 %hide Data.Nat.divCeilNZ
 %language ElabReflection
 %prefix_record_projections off
+
+public export
+GenOrderTuning `{HSnocVectMaybeNode.(:<)}.dataCon where
+  isConstructor = itIsConstructor
+  deriveFirst _ _ = [`{p}, `{sp}]
 
 genValidFilenameChar : Gen MaybeEmpty Bits8
 genValidFilenameChar = elements' $ map cast $ the (List Char) $ ['A'..'Z'] ++ ['0'..'9'] ++ unpack "!#$%&'()-@^_`{}~"
