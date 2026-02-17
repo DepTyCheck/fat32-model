@@ -2,6 +2,7 @@ module Filesystems.FAT32.Image
 
 
 import Filesystems.FAT32
+import Filesystems.FAT32.Gen
 import Filesystems.FAT32.Derived.Node
 import Data.Array.Core
 import Data.Array.Index

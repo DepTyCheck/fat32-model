@@ -2,8 +2,10 @@ module Main
 
 import Data.Nat
 import Data.Monomorphic.Vect
+import Filesystems.FAT32
 import Filesystems.FAT32.Image
 import Filesystems.FAT32.Index
+import Filesystems.FAT32.Gen
 import Filesystems.FAT32.Derived.Node
 import Filesystems.FAT32.Derived.NodeOps
 import Filesystems.FAT32.NodeOps
