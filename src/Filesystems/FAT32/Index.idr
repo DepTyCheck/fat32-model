@@ -51,6 +51,55 @@ namespace HSnocVectMaybeNode
                Node cfg ar2 Rootless ->
                (ars' ** HSnocVectMaybeNode cfg k ars' prs)
 
+    public export
+    data NamesWeakened : (ff : UniqNames prs) -> (ff' : UniqNames prs') -> Type where
+      WEmpty : NamesWeakened Empty Empty
+      WErased : NamesWeakened ff ff' ->
+                NamesWeakened (NewName ff f @{nprf}) (NewName ff' Nothing @{nprf'})
+      WEqual : NamesWeakened ff ff' ->
+               NamesWeakened (NewName ff f @{nprf}) (NewName ff' f @{nprf'})
+
+    public export
+    trivialNameWeaken : (ff : UniqNames prs) -> NamesWeakened ff ff
+    trivialNameWeaken Empty = WEmpty
+    trivialNameWeaken (NewName ff f) = WEqual (trivialNameWeaken ff)
+
+    public export
+    0 newNameInWeakenedPrf : (ff : UniqNames prs) ->
+                             (ff' : UniqNames prs') ->
+                             (f : MaybeFilename pr) ->
+                             (0 w : NamesWeakened ff ff') ->
+                             (0 nprf : NameIsNew ff f) ->
+                             NameIsNew ff' f
+    newNameInWeakenedPrf ff ff' Nothing w nprf = NewNothing
+    newNameInWeakenedPrf Empty Empty (Just x) WEmpty nprf = EmptyList
+    newNameInWeakenedPrf (NewName ff Nothing) (NewName ff' Nothing) (Just x) (WErased y) (OldNothing z) = OldNothing $ newNameInWeakenedPrf ff ff' (Just x) y z
+    newNameInWeakenedPrf (NewName ff (Just f)) (NewName ff' Nothing) (Just x) (WErased y) (OldJust _ z) = OldNothing $ newNameInWeakenedPrf ff ff' (Just x) y z
+    newNameInWeakenedPrf (NewName ff Nothing) (NewName ff' Nothing) (Just x) (WEqual y) (OldNothing z) = OldNothing $ newNameInWeakenedPrf ff ff' (Just x) y z
+    newNameInWeakenedPrf (NewName ff (Just f)) (NewName ff' (Just f)) (Just x) (WEqual y) (OldJust so z) = OldJust so $ newNameInWeakenedPrf ff ff' (Just x) y z
+
+    public export
+    data ShallowIndexIn : HSnocVectMaybeNode cfg k ars prs -> Type where
+        SHere : ShallowIndexIn $ xs :< Just x
+        SThere : ShallowIndexIn xs -> ShallowIndexIn $ xs :< x
+
+    public export
+    shallowIndexSet : (cfg : NodeCfg) ->
+                      (ars : SnocVectNodeArgs k) ->
+                      (prs : SnocVectPresence k) ->
+                      (vect : HSnocVectMaybeNode cfg k ars prs) ->
+                      (names : UniqNames prs) ->
+                      (sidx : ShallowIndexIn vect) ->
+                      {ar2 : NodeArgs} ->
+                      {pr2 : Presence} ->
+                      (mnode : MaybeNode cfg ar2 pr2) ->
+                      (ars' ** prs' ** (HSnocVectMaybeNode cfg k ars' prs', Subset (UniqNames prs') $ \ff' => NamesWeakened names ff'))
+    shallowIndexSet cfg (ars :< ar) (prs :< Present) (sp :< Just p) (NewName ff f) SHere Nothing = (_ ** _ ** (sp :< Nothing, Element (NewName ff Nothing) $ WErased $ trivialNameWeaken ff))
+    shallowIndexSet cfg (ars :< ar) (prs :< Present) (sp :< Just p) (NewName ff f) SHere (Just x) = (_ ** _ ** (sp :< Just x, Element (NewName ff f) $ WEqual $ trivialNameWeaken ff))
+    shallowIndexSet cfg (ars :< ar) (prs :< pr) (sp :< p) (NewName ff f @{nprf}) (SThere sidx) mnode with (shallowIndexSet cfg ars prs sp ff sidx mnode)
+      _ | (ars' ** prs' ** (sp', Element ff' wprf')) = (_ ** _ ** (sp' :< p, Element (NewName ff' f @{newNameInWeakenedPrf ff ff' f wprf' nprf}) $ WEqual wprf'))
+    
+
 namespace Node
     public export
     data IndexIn : Node cfg ar fs -> RootLabel -> IndexDirLabel -> Type where

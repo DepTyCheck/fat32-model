@@ -11,6 +11,7 @@ import Filesystems.FAT32.NodeOps
 header : Nat -> String
 header len = #"""
 #define _GNU_SOURCE
+#define _XOPEN_SOURCE 500
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -22,9 +23,19 @@ header len = #"""
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <ftw.h>
 #include <linux/msdos_fs.h>
 
 #define panic_on(EXPR) do {if (EXPR) {perror(""); assert(0);}} while (0)
+#define NFTW_FD_LIMIT 64
+
+int ftw_rm_lambda(const char *fpath, const struct stat *st, int info, struct FTW *offs) {
+  return remove(fpath);
+}
+
+int rm(const char *path) {
+  return nftw(path, ftw_rm_lambda, NFTW_FD_LIMIT, FTW_DEPTH | FTW_PHYS);
+}
 
 int main(int argc, char **argv) {
   if (argc < 2) {
@@ -62,6 +73,16 @@ index2UnixPath .(File _ _ @{_}) HereFile = ""
 index2UnixPath .(Dir _ _ _ @{_}) HereDir = "/"
 index2UnixPath .(File _ _ @{_}) (ThereDir _) impossible
 
+public export
+shallowIndex2Name : (vect : HSnocVectMaybeNode cfg k ars prs) -> (ff : UniqNames prs) -> (sidx : ShallowIndexIn vect) -> String
+shallowIndex2Name (xs :< Just x) (NewName ff (Just f)) SHere = "\{f}"
+shallowIndex2Name (xs :< x) (NewName ff f) (SThere idx) = shallowIndex2Name xs ff idx
+
+public export
+indexPair2Name : (node : Node cfg ar Rootful) -> (idx : IndexIn node rootl DirI) -> (sidx : ShallowIndexIn $ fst $ snd $ snd $ snd $ getContentsByDirIndex node idx) -> String
+indexPair2Name node idx sidx with (getContentsByDirIndex node idx)
+  _ | (_ ** _ ** _ ** (vect, ff)) = shallowIndex2Name vect ff sidx
+
 bool : Bool -> String
 bool True = "true"
 bool False = "false"
@@ -87,7 +108,7 @@ printCOps i len root (GetFlags idx cont) with (indexGet root idx)
             panic_on(res < 0);
           }
 
-        """# :: printCOps (i + 1) len root cont
+        """# :: printCOps (i + 1) len _ cont
     _ | (Evidence _ ((Dir meta _ _) ** prf)) = let path = index2UnixPath root idx in #"""
           {
             puts("Test \#{show i}/\#{show len}: GetFlags on \#{path}");
@@ -106,7 +127,7 @@ printCOps i len root (GetFlags idx cont) with (indexGet root idx)
             panic_on(res < 0);
           }
 
-        """# :: printCOps (i + 1) len root cont
+        """# :: printCOps (i + 1) len _ cont
     _ | (Evidence _ ((Root _ _) ** prf)) = let path = index2UnixPath root idx in #"""
           {
             puts("Test \#{show i}/\#{show len}: GetFlags on \#{path}");
@@ -125,7 +146,7 @@ printCOps i len root (GetFlags idx cont) with (indexGet root idx)
             panic_on(res < 0);
           }
 
-        """# :: printCOps (i + 1) len root cont
+        """# :: printCOps (i + 1) len _ cont
 printCOps i len root (SetFlags idx meta cont) = let path = index2UnixPath root idx in #"""
           {
             puts("Test \#{show i}/\#{show len}: SetFlags on \#{path}");
@@ -143,7 +164,7 @@ printCOps i len root (SetFlags idx meta cont) = let path = index2UnixPath root i
             panic_on(res < 0);
           }
 
-        """# :: printCOps (i + 1) len (setFlags cfg root idx meta) cont
+        """# :: printCOps (i + 1) len _ cont
 printCOps i len root (NewDir idx name nameprf cont) = let path = index2UnixPath root idx in #"""
           {
             puts("Test \#{show i}/\#{show len}: NewDir \#{name} in \#{path}");
@@ -156,7 +177,7 @@ printCOps i len root (NewDir idx name nameprf cont) = let path = index2UnixPath 
             panic_on(res < 0);
           }
 
-        """# :: printCOps (i + 1) len (snd $ newDir cfg root idx name nameprf) cont
+        """# :: printCOps (i + 1) len _ cont
 printCOps i len root (NewFile idx name nameprf cont) = let path = index2UnixPath root idx in #"""
           {
             puts("Test \#{show i}/\#{show len}: NewFile \#{name} in \#{path}");
@@ -169,7 +190,25 @@ printCOps i len root (NewFile idx name nameprf cont) = let path = index2UnixPath
             panic_on(res < 0);
           }
 
-        """# :: printCOps (i + 1) len (snd $ newFile cfg root idx name nameprf) cont
+        """# :: printCOps (i + 1) len _ cont
+printCOps i len root (RmNode idx sidx cont) = let 
+  path = index2UnixPath root idx
+  name = indexPair2Name root idx sidx
+  in #"""
+          {
+            puts("Test \#{show i}/\#{show len}: RmNode \#{name} in \#{path}");
+            errno = 0;
+            int fd = openat(rootfd, "\#{path}", O_PATH | O_DIRECTORY);
+            panic_on(fd < 0);
+            int res = fchdir(fd);
+            panic_on(res < 0);
+            res = rm("\#{name}");
+            panic_on(res < 0);
+            res = close(fd);
+            panic_on(res < 0);
+          }
+
+        """# :: printCOps (i + 1) len _ cont
 printCOps _ _ _ Nop = [#"puts("All done!");\#n"#]
 
 public export
