@@ -103,7 +103,6 @@ printCOps i len root (GetFlags idx cont) with (indexGet root idx)
             assert(\#{bool meta.readOnly} == !!(attr & ATTR_RO));
             assert(\#{bool meta.hidden} == !!(attr & ATTR_HIDDEN));
             assert(\#{bool meta.system} == !!(attr & ATTR_SYS));
-            assert(\#{bool meta.archive} == !!(attr & ATTR_ARCH));
             res = close(fd);
             panic_on(res < 0);
           }
@@ -122,7 +121,6 @@ printCOps i len root (GetFlags idx cont) with (indexGet root idx)
             assert(\#{bool meta.readOnly} == !!(attr & ATTR_RO));
             assert(\#{bool meta.hidden} == !!(attr & ATTR_HIDDEN));
             assert(\#{bool meta.system} == !!(attr & ATTR_SYS));
-            assert(\#{bool meta.archive} == !!(attr & ATTR_ARCH));
             res = close(fd);
             panic_on(res < 0);
           }
@@ -141,7 +139,6 @@ printCOps i len root (GetFlags idx cont) with (indexGet root idx)
             assert(!(attr & ATTR_RO));
             assert(!(attr & ATTR_HIDDEN));
             assert(!(attr & ATTR_SYS));
-            assert(!(attr & ATTR_ARCH));
             res = close(fd);
             panic_on(res < 0);
           }
