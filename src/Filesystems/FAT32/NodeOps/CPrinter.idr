@@ -17,10 +17,12 @@ header len = #"""
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <assert.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <ftw.h>
@@ -35,6 +37,10 @@ int ftw_rm_lambda(const char *fpath, const struct stat *st, int info, struct FTW
 
 int rm(const char *path) {
   return nftw(path, ftw_rm_lambda, NFTW_FD_LIMIT, FTW_DEPTH | FTW_PHYS);
+}
+
+int direntcmp(const struct dirent **a, const struct dirent **b) {
+  return strcmp((*a)->d_name, (*b)->d_name);
 }
 
 int main(int argc, char **argv) {
@@ -82,6 +88,14 @@ public export
 indexPair2Name : (node : Node cfg ar Rootful) -> (idx : IndexIn node rootl DirI) -> (sidx : ShallowIndexIn $ fst $ snd $ snd $ snd $ getContentsByDirIndex node idx) -> String
 indexPair2Name node idx sidx with (getContentsByDirIndex node idx)
   _ | (_ ** _ ** _ ** (vect, ff)) = shallowIndex2Name vect ff sidx
+
+convert2NameList : (ff : UniqNames prs) -> List String -> List String
+convert2NameList Empty acc = acc
+convert2NameList (NewName ff Nothing) acc = convert2NameList ff acc
+convert2NameList (NewName ff $ Just f) acc = convert2NameList ff ("\{f}" :: acc)
+
+getSortedNameArray : (node : Node cfg ar fs) -> (idx : IndexIn node rootl DirI) -> String
+getSortedNameArray node idx = concatMap (\x => #""\#{x}", "#) $ sort $ convert2NameList (snd $ snd $ snd $ snd $ getContentsByDirIndex node idx) []
 
 bool : Bool -> String
 bool True = "true"
@@ -206,9 +220,48 @@ printCOps i len root (RmNode idx sidx cont) = let
           }
 
         """# :: printCOps (i + 1) len _ cont
-printCOps i len root (MvNode idx sidx idx2 name nameprf cont) = printCOps (i + 1) len _ cont
-printCOps i len root (LsTree idx cont) = printCOps (i + 1) len _ cont
-printCOps i len root (LsDir idx cont) = printCOps (i + 1) len _ cont
+printCOps i len root (MvNode idx sidx idx2 dstname nameprf cont) = let
+  srcdir = index2UnixPath root idx
+  srcname = indexPair2Name root idx sidx
+  dstdir = index2UnixPath (snd $ rmNode _ _ _ sidx) idx2
+  in #"""
+          {
+            puts("Test \#{show i}/\#{show len}: MvNode from \#{srcdir}/\#{srcname} to \#{dstdir}/\#{dstname}");
+            errno = 0;
+            int srcfd = openat(rootfd, "\#{srcdir}", O_PATH | O_DIRECTORY);
+            panic_on(srcfd < 0);
+            int dstfd = openat(rootfd, "\#{dstdir}", O_PATH | O_DIRECTORY);
+            panic_on(dstfd < 0);
+            int res = renameat2(srcfd, "\#{srcname}", dstfd, "\#{dstname}", RENAME_NOREPLACE);
+            panic_on(res < 0);
+            res = close(srcfd);
+            panic_on(res < 0);
+            res = close(dstfd);
+            panic_on(res < 0);
+          }
+
+        """# :: printCOps (i + 1) len _ cont
+printCOps i len root (LsDir idx cont) = let path = index2UnixPath root idx in #"""
+          {
+            puts("Test \#{show i}/\#{show len}: LsDir on \#{path}");
+            errno = 0;
+            const char *golden[] = {\#{getSortedNameArray root idx}};
+            struct dirent **namelist;
+            int res = scandirat(rootfd, "\#{path}", &namelist, NULL, direntcmp);
+            panic_on(res < 0);
+            assert(res - 2 == sizeof(golden) / sizeof(*golden));
+            int j = 0;
+            for (int i = 0; i < res; ++i) {
+              if (strcmp(".", namelist[i]->d_name) != 0 && strcmp("..", namelist[i]->d_name) != 0) {
+                assert(!strcmp(golden[j], namelist[i]->d_name));
+                ++j;
+              }
+              free(namelist[i]);
+            }
+            free(namelist);
+          }
+
+        """# :: printCOps (i + 1) len _ cont
 printCOps _ _ _ Nop = [#"puts("All done!");\#n"#]
 
 public export
