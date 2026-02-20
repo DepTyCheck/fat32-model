@@ -206,6 +206,9 @@ printCOps i len root (RmNode idx sidx cont) = let
           }
 
         """# :: printCOps (i + 1) len _ cont
+printCOps i len root (MvNode idx sidx idx2 name nameprf cont) = printCOps (i + 1) len _ cont
+printCOps i len root (LsTree idx cont) = printCOps (i + 1) len _ cont
+printCOps i len root (LsDir idx cont) = printCOps (i + 1) len _ cont
 printCOps _ _ _ Nop = [#"puts("All done!");\#n"#]
 
 public export

@@ -52,14 +52,6 @@ newFile cfg@(MkNodeCfg clusterSize) node idx name nameprf {ar} with (indexGet no
   _ | (Evidence _ ((Root sx' names' ** _))) = indexSet (MkNodeCfg _) node idx (Root (sx' :< Just (File (MkMetadata False False False False) [<])) (NewName names' (Just name) @{nameprf}))
   _ | (Evidence _ ((File {} ** ati'))) = void $ uninhabited ati'
 
-public export
-getContentsByDirIndex : (node : Node cfg ar Rootful) ->
-                        (idx : IndexIn node rootl DirI) ->
-                        (k ** ars ** prs ** (HSnocVectMaybeNode cfg k ars prs, UniqNames prs))
-getContentsByDirIndex node idx with (indexGet node idx)
-  _ | (Evidence _ (File {} ** ati)) = void $ uninhabited ati
-  _ | (Evidence _ (Dir _ ents ff ** _)) = (_ ** _ ** _ ** (ents, ff))
-  _ | (Evidence _ (Root ents ff ** _)) = (_ ** _ ** _ ** (ents, ff))
 
 public export
 rmNode : (cfg : NodeCfg) ->
@@ -73,6 +65,20 @@ rmNode (MkNodeCfg _) node idx sidx {ar} with (indexGet node idx)
     _ | (_ ** _ ** (sp', Element ff' _)) = indexSet (MkNodeCfg _) node idx (Dir meta sp' ff')
   _ | (Evidence _ (Root sp ff ** _)) with (shallowIndexSet (MkNodeCfg _) _ _ sp ff sidx Nothing)
     _ | (_ ** _ ** (sp', Element ff' _)) = indexSet (MkNodeCfg _) node idx (Root sp' ff')
+
+public export
+mvNode : (cfg : NodeCfg) ->
+         (node : Node cfg ar Rootful) ->
+         (idx : IndexIn node rootl DirI) ->
+         (sidx : ShallowIndexIn $ fst $ snd $ snd $ snd $ getContentsByDirIndex node idx) ->
+         (idx2 : IndexIn (snd $ rmNode cfg node idx sidx) rootl DirI) ->
+         (name : Filename) ->
+         (nameprf : NameIsNew (snd $ snd $ namesGet (snd $ rmNode cfg node idx sidx) idx2) (Just name)) ->
+         (ar'' ** Node cfg ar'' Rootful)
+mvNode (MkNodeCfg _) node idx sidx idx2 name nameprf {ar} with (compoundIndexGet _ _ sidx) | (indexGet (snd $ rmNode _ _ _ sidx) idx2)
+  _ | _ | Evidence _ (File {} ** ati) = void $ uninhabited ati
+  _ | (_ ** src) | Evidence _ (Dir meta sp ff ** _) = indexSet _ _ idx2 $ Dir meta .| sp :< Just src $ NewName ff $ Just name
+  _ | (_ ** src) | Evidence _ (Root sp ff ** _) = indexSet _ _ idx2 $ Root .| sp :< Just src $ NewName ff $ Just name
 
 public export
 data NodeOps : (cfg : NodeCfg) -> (node : Node cfg ar Rootful) -> Type where
@@ -98,15 +104,27 @@ data NodeOps : (cfg : NodeCfg) -> (node : Node cfg ar Rootful) -> Type where
                (sidx : ShallowIndexIn $ fst $ snd $ snd $ snd $ getContentsByDirIndex node idx) ->
                (cont : NodeOps cfg $ snd $ rmNode cfg node idx sidx) ->
                NodeOps cfg node
+    MvNode   : (idx : IndexIn node rootl DirI) ->
+               (sidx : ShallowIndexIn $ fst $ snd $ snd $ snd $ getContentsByDirIndex node idx) ->
+               (idx2 : IndexIn (snd $ rmNode cfg node idx sidx) rootl DirI) ->
+               (name : Filename) ->
+               (nameprf : NameIsNew (snd $ snd $ namesGet (snd $ rmNode cfg node idx sidx) idx2) (Just name)) ->
+               (cont : NodeOps cfg $ snd $ mvNode cfg node idx sidx idx2 name nameprf) ->
+               NodeOps cfg node
+    LsDir    : (idx : IndexIn node rootl DirI) ->
+               (cont : NodeOps cfg node) ->
+               NodeOps cfg node
 
 public export
 length : NodeOps cfg node -> Nat
 length Nop = 0
-length (GetFlags idx cont) = S $ length cont
-length (SetFlags idx meta cont) = S $ length cont
-length (NewDir idx name nameprf cont) = S $ length cont
-length (NewFile idx name nameprf cont) = S $ length cont
-length (RmNode idx sidx cont) = S $ length cont
+length (GetFlags _ cont)       = S $ length cont
+length (SetFlags _ _ cont)     = S $ length cont
+length (NewDir _ _ _ cont)     = S $ length cont
+length (NewFile _ _ _ cont)    = S $ length cont
+length (RmNode _ _ cont)       = S $ length cont
+length (MvNode _ _ _ _ _ cont) = S $ length cont
+length (LsDir _ cont)          = S $ length cont
 
 -- %runElab deriveIndexed "NodeOps" [Show]
 

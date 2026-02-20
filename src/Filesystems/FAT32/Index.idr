@@ -84,6 +84,13 @@ namespace HSnocVectMaybeNode
         SThere : ShallowIndexIn xs -> ShallowIndexIn $ xs :< x
 
     public export
+    shallowIndexGet : (vect : HSnocVectMaybeNode cfg k ars prs) ->
+                      (sidx : ShallowIndexIn vect) ->
+                      (ar' ** Node cfg ar' Rootless)
+    shallowIndexGet (xs :< Just x) SHere = (_ ** x)
+    shallowIndexGet (xs :< x) (SThere idx) = shallowIndexGet xs idx
+
+    public export
     shallowIndexSet : (cfg : NodeCfg) ->
                       (ars : SnocVectNodeArgs k) ->
                       (prs : SnocVectPresence k) ->
@@ -217,4 +224,20 @@ namespace HSnocVectMaybeNode
         _ | (_ ** nd) = (_ ** (xs :< Just nd))
     indexSet cfg (ars :< _) (xs :< x) (There idx) f with (indexSet cfg ars xs idx f)
         _ | (_ ** xs') = (_ ** (xs' :< x))
+
+public export
+getContentsByDirIndex : (node : Node cfg ar fs) ->
+                        (idx : IndexIn node rootl DirI) ->
+                        (k ** ars ** prs ** (HSnocVectMaybeNode cfg k ars prs, UniqNames prs))
+getContentsByDirIndex node idx with (indexGet node idx)
+  _ | (Evidence _ (File {} ** ati)) = void $ uninhabited ati
+  _ | (Evidence _ (Dir _ ents ff ** _)) = (_ ** _ ** _ ** (ents, ff))
+  _ | (Evidence _ (Root ents ff ** _)) = (_ ** _ ** _ ** (ents, ff))
+
+public export
+compoundIndexGet : (node : Node cfg ar fs) ->
+                   (idx : IndexIn node rootl DirI) ->
+                   (sidx : ShallowIndexIn $ fst $ snd $ snd $ snd $ getContentsByDirIndex node idx) ->
+                   (ar' ** Node cfg ar' Rootless)
+compoundIndexGet node idx sidx = shallowIndexGet _ sidx
 
