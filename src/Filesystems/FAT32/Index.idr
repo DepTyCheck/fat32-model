@@ -24,6 +24,9 @@ namespace HSnocVectMaybeNode
     Uninhabited (HSnocVectMaybeNode.AtIndex {dirl=DirI} idx (File @{clustNZ} meta blob))
     
     public export
+    Uninhabited (HSnocVectMaybeNode.AtIndex {dirl=FileI} idx (Dir @{clustNZ} meta sp ff))
+    
+    public export
     indexGet : (vect : HSnocVectMaybeNode cfg k ars prs) -> (idx : IndexIn vect dirl) -> Exists (\ar' => (nd : Node cfg ar' Rootless ** AtIndex idx nd))
 
     -- public export
@@ -131,6 +134,11 @@ namespace Node
     Uninhabited (Node.AtIndex {dirl=DirI} idx (File @{clustNZ} meta blob)) where
       uninhabited (ThereDir' x) = uninhabited x
       uninhabited (ThereRoot' x) = uninhabited x
+    
+    public export
+    Uninhabited (Node.AtIndex {dirl=FileI} idx (Dir @{clustNZ} meta sp ff)) where
+        uninhabited (ThereDir' x) = uninhabited x
+        uninhabited (ThereRoot' x) = uninhabited x
 
     public export
     indexGet : (node : Node cfg ar fs) -> (idx : IndexIn node rootl dirl) -> Exists (\ar' => (nd : Node cfg ar' rootl ** AtIndex idx nd))
@@ -204,6 +212,10 @@ namespace HSnocVectMaybeNode
     Uninhabited (HSnocVectMaybeNode.AtIndex {dirl=DirI} idx (File @{clustNZ} meta blob)) where
       uninhabited (Here' x) = uninhabited x
       uninhabited (There' x) = uninhabited x
+    
+    Uninhabited (HSnocVectMaybeNode.AtIndex {dirl=FileI} idx (Dir @{clustNZ} meta sp ff)) where
+      uninhabited (Here' x) = uninhabited x
+      uninhabited (There' x) = uninhabited x
 
     indexGet (_ :< Just x) (Here idx) with (indexGet x idx)
       _ | (Evidence _ (nd ** prf)) = Evidence _ (nd ** Here' prf)
@@ -224,6 +236,14 @@ namespace HSnocVectMaybeNode
         _ | (_ ** nd) = (_ ** (xs :< Just nd))
     indexSet cfg (ars :< _) (xs :< x) (There idx) f with (indexSet cfg ars xs idx f)
         _ | (_ ** xs') = (_ ** (xs' :< x))
+
+public export
+getBlobByFileIndex : (node : Node cfg ar fs) ->
+                     (idx : IndexIn node Rootless FileI) ->
+                     (k ** SnocVectBits8 k)
+getBlobByFileIndex node idx with (indexGet node idx)
+  getBlobByFileIndex node idx | (Evidence _ (File _ blob ** _)) = (_ ** blob)
+  getBlobByFileIndex node idx | (Evidence _ (Dir {} ** ati)) = void $ uninhabited ati
 
 public export
 getContentsByDirIndex : (node : Node cfg ar fs) ->

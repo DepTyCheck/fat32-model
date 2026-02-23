@@ -34,12 +34,6 @@ public export %hint
 genFilename : Gen MaybeEmpty Filename
 genFilename = pure $ MkFilename $ !(genPaddedName 1 FilenameLengthName) ++ !(genPaddedName 0 FilenameLengthExt)
 
-public export
-genBlob : (blobLimit : Nat) -> Gen MaybeEmpty (k ** SnocVectBits8 k)
-genBlob blobLimit = do
-  k <- elements' $ the (List Nat) [0..blobLimit]
-  blob <- genSnocVectBits8 k
-  pure (k ** blob)
 
 -- public export
 -- genUniqNames : Fuel ->

@@ -43,6 +43,42 @@ int direntcmp(const struct dirent **a, const struct dirent **b) {
   return strcmp((*a)->d_name, (*b)->d_name);
 }
 
+ssize_t nread(int fd, unsigned char *buf, size_t sz, off_t off) {
+  size_t left = sz;
+  while (left > 0) {
+    errno = 0;
+    int res = pread(fd, buf + (sz - left), left, off + (sz - left));
+    if (res < 0) {
+      if (errno != EINTR) {
+        return res;
+      }
+      continue;
+    } else if (res == 0) {
+      break;
+    }
+    left -= res;
+  }
+  return sz - left;
+}
+
+ssize_t nwrite(int fd, const unsigned char *buf, size_t sz, off_t off) {
+  size_t left = sz;
+  while (left > 0) {
+    errno = 0;
+    int res = pwrite(fd, buf + (sz - left), left, off + (sz - left));
+    if (res < 0) {
+      if (errno != EINTR) {
+        return res;
+      }
+      continue;
+    } else if (res == 0) {
+      break;
+    }
+    left -= res;
+  }
+  return sz - left;
+}
+
 int main(int argc, char **argv) {
   if (argc < 2) {
     fprintf(stderr, "Usage: ");
@@ -97,9 +133,20 @@ convert2NameList (NewName ff $ Just f) acc = convert2NameList ff ("\{f}" :: acc)
 getSortedNameArray : (node : Node cfg ar fs) -> (idx : IndexIn node rootl DirI) -> String
 getSortedNameArray node idx = concatMap (\x => #""\#{x}", "#) $ sort $ convert2NameList (snd $ snd $ snd $ snd $ getContentsByDirIndex node idx) []
 
+printVectBits8 : VectBits8 n -> String
+printVectBits8 xs = concatMap (\k => "\{show k}, " ) $ toVect xs
+
+printSnocVectBits8 : SnocVectBits8 n -> String
+printSnocVectBits8 sx = concatMap (\k => "\{show k}, " ) $ sx <>> []
+
 bool : Bool -> String
 bool True = "true"
 bool False = "false"
+
+countPresent : SnocVectPresence k -> Nat
+countPresent [<] = 0
+countPresent (sx :< Present) = S $ countPresent sx
+countPresent (sx :< Absent) = countPresent sx
 
 public export
 printCOps : Nat -> Nat -> {cfg : NodeCfg} -> (node : Node cfg ar Rootful) -> NodeOps cfg node -> List String
@@ -241,7 +288,23 @@ printCOps i len root (MvNode idx sidx idx2 dstname nameprf cont) = let
           }
 
         """# :: printCOps (i + 1) len _ cont
-printCOps i len root (LsDir idx cont) = let path = index2UnixPath root idx in #"""
+printCOps i len root (LsDir idx cont) with (countPresent $ fst $ snd $ snd $ getContentsByDirIndex root idx)
+  _ | Z = let path = index2UnixPath root idx in #"""
+          {
+            puts("Test \#{show i}/\#{show len}: LsDir on \#{path}");
+            errno = 0;
+            struct dirent **namelist;
+            int res = scandirat(rootfd, "\#{path}", &namelist, NULL, direntcmp);
+            panic_on(res < 0);
+            assert(res == 2);
+            for (int i = 0; i < res; ++i) {
+              free(namelist[i]);
+            }
+            free(namelist);
+          }
+
+        """# :: printCOps (i + 1) len _ cont
+  _ | (S _) = let path = index2UnixPath root idx in #"""
           {
             puts("Test \#{show i}/\#{show len}: LsDir on \#{path}");
             errno = 0;
@@ -259,6 +322,64 @@ printCOps i len root (LsDir idx cont) = let path = index2UnixPath root idx in #"
               free(namelist[i]);
             }
             free(namelist);
+          }
+
+        """# :: printCOps (i + 1) len _ cont
+printCOps i len root (Read idx off Z lprf cont) = let path = index2UnixPath root idx in #"""
+          {
+            puts("Test \#{show i}/\#{show len}: Read \#{path} of length 0 from offset \#{show off}");
+            errno = 0;
+            int fd = openat(rootfd, "\#{path}", O_RDONLY);
+            panic_on(fd < 0);
+            off_t off = lseek(fd, \#{show off}, SEEK_SET);
+            panic_on(off == (off_t) -1);
+            int res = close(fd);
+            panic_on(res < 0);
+          }
+
+        """# :: printCOps (i + 1) len _ cont
+printCOps i len root (Read idx off (S sz') lprf cont) = let path = index2UnixPath root idx in #"""
+          {
+            puts("Test \#{show i}/\#{show len}: Read \#{path} of length \#{show $ S sz'} from offset \#{show off}");
+            const unsigned char golden[] = {\#{printSnocVectBits8 $ slice (snd $ getBlobByFileIndex root idx) off (S sz') @{lprf}}};
+            unsigned char buf[sizeof(golden)] = {0};
+            errno = 0;
+            int fd = openat(rootfd, "\#{path}", O_RDONLY);
+            panic_on(fd < 0);
+            ssize_t cnt = nread(fd, buf, sizeof(golden), \#{show off});
+            panic_on(cnt < 0);
+            assert(cnt == sizeof(golden));
+            assert(memcmp(buf, golden, sizeof(golden)) == 0);
+            int res = close(fd);
+            panic_on(res < 0);
+          }
+
+        """# :: printCOps (i + 1) len _ cont
+printCOps i len root (Write idx off Z blob cont) = let path = index2UnixPath root idx in #"""
+          {
+            puts("Test \#{show i}/\#{show len}: Write \#{path} of length 0 from offset \#{show off}");
+            errno = 0;
+            int fd = openat(rootfd, "\#{path}", O_WRONLY);
+            panic_on(fd < 0);
+            off_t off = lseek(fd, \#{show off}, SEEK_SET);
+            panic_on(off == (off_t) -1);
+            int res = close(fd);
+            panic_on(res < 0);
+          }
+
+        """# :: printCOps (i + 1) len _ cont
+printCOps i len root (Write idx off (S sz') blob cont) = let path = index2UnixPath root idx in #"""
+          {
+            puts("Test \#{show i}/\#{show len}: Write \#{path} of length \#{show $ S sz'} from offset \#{show off}");
+            const unsigned char buf[] = {\#{printVectBits8 blob}};
+            errno = 0;
+            int fd = openat(rootfd, "\#{path}", O_WRONLY);
+            panic_on(fd < 0);
+            ssize_t cnt = nwrite(fd, buf, sizeof(buf), \#{show off});
+            panic_on(cnt < 0);
+            assert(cnt == sizeof(buf));
+            int res = close(fd);
+            panic_on(res < 0);
           }
 
         """# :: printCOps (i + 1) len _ cont

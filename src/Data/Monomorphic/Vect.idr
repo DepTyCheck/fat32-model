@@ -1,13 +1,16 @@
 module Data.Monomorphic.Vect
 
-import public Data.Nat
+import Data.Nat
+import Data.Nat.Order.Properties
 import Derive.Prelude
 import Deriving.DepTyCheck.Gen
 import Data.Buffer.Core
 import Data.Buffer.Indexed
 
 %default total
+%hide Data.Nat.divCeilNZ
 %language ElabReflection
+%prefix_record_projections off
 
 public export
 data Presence = Present | Absent
@@ -74,6 +77,13 @@ namespace VectBits8
     genVectBits8 (S k) = [| genBits8 :: genVectBits8 k |]
 
     public export
+    genBlob : (blobLimit : Nat) -> Gen MaybeEmpty (k ** VectBits8 k)
+    genBlob blobLimit = do
+      k <- elements' $ the (List Nat) [0..blobLimit]
+      blob <- genVectBits8 k
+      pure (k ** blob)
+
+    public export
     packVect : {n : Nat} -> VectBits8 n -> IBuffer n
     packVect = buffer . toVect
 
@@ -125,6 +135,11 @@ namespace SnocVectBits8
           sx <>> x :: xs
     
     public export
+    replicate : (n : Nat) -> Bits8 -> SnocVectBits8 n
+    replicate 0 m = [<]
+    replicate (S k) m = replicate k m :< m
+    
+    public export
     packVect : {n : Nat} -> SnocVectBits8 n -> IBuffer n
     packVect sx = rewrite sym $ plusZeroRightNeutral n in buffer $ sx <>> []
     
@@ -132,6 +147,37 @@ namespace SnocVectBits8
     genSnocVectBits8 : (n : Nat) -> Gen MaybeEmpty (SnocVectBits8 n)
     genSnocVectBits8 0 = pure [<]
     genSnocVectBits8 (S k) = [| genSnocVectBits8 k :< genBits8 |]
+    
+    public export
+    genBlob : (blobLimit : Nat) -> Gen MaybeEmpty (k ** SnocVectBits8 k)
+    genBlob blobLimit = do
+      k <- elements' $ the (List Nat) [0..blobLimit]
+      blob <- genSnocVectBits8 k
+      pure (k ** blob)
+    
+    public export
+    ifNotRightThenLeft : Either a b -> Not b -> a
+    ifNotRightThenLeft (Left x) f = x
+    ifNotRightThenLeft (Right x) f = void $ f x
+
+    public export
+    slice : {n : Nat} -> (sx : SnocVectBits8 n) -> (src : Nat) -> (len : Nat) -> (0 lprf : LTE (src + len) n) => SnocVectBits8 len
+    slice sx src 0 @{lprf} = [<]
+    slice [<] src (S k) @{lprf} = void $ uninhabited $ replace {p = \x => LTE x 0} (sym $ plusSuccRightSucc src k) lprf
+    slice {n = n@(S n')} (sx :< x) src (S k) @{lprf} with (decEq (src + S k) n)
+      _ | (Yes prf) = slice sx src k @{eqLTE _ _ $ injective {f = S} $ rewrite plusSuccRightSucc src k in prf} :< x
+      _ | (No contra) = slice sx src (S k) @{fromLteSucc $ ifNotRightThenLeft (decomposeLte _ _ lprf) contra}
+
+    public export
+    truncate : {n : Nat} -> (ssx : SnocVectBits8 n) -> (off : Nat) -> SnocVectBits8 off
+    truncate [<] off = replicate _ 0
+    truncate {n = n@(S n')} ssx@(sx :< x) off with (isGTE off n)
+      _ | (Yes prf) = replace {p = SnocVectBits8} (plusCommutative _ _ `trans` plusMinusLte (S n') off prf) $ ssx <>< replicate (minus off $ S n') 0
+      _ | (No _) = truncate sx off
+
+    public export
+    overwriteAt : {n : Nat} -> (sx : SnocVectBits8 n) -> (off : Nat) -> (ys : VectBits8 len) -> SnocVectBits8 (off + len)
+    overwriteAt sx off ys = truncate sx off <>< ys
 
 %runElab deriveIndexed "VectBits8" [Show]
 %runElab deriveIndexed "SnocVectBits8" [Show]

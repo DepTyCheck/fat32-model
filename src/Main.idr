@@ -40,6 +40,7 @@ record Config (m : Type -> Type) where
     seed       : m Bits64
     minClust   : m Nat
     blobLimit  : m Nat
+    writeLimit : m Nat
     printNode  : m Bool
     printFs    : m Bool
     printCmap  : m Bool
@@ -56,6 +57,7 @@ emptyCfg = MkConfig
     , seed       = Nothing
     , minClust   = Nothing
     , blobLimit  = Nothing
+    , writeLimit = Nothing
     , printNode  = Nothing
     , printFs    = Nothing
     , printCmap  = Nothing
@@ -74,6 +76,7 @@ defaultCfg = MkConfig
     , seed       = 1450262
     , minClust   = 0
     , blobLimit  = 1024
+    , writeLimit = 128
     , printNode  = False
     , printFs    = False
     , printCmap  = False
@@ -102,6 +105,9 @@ parseMinClust s = pure $ {minClust := Just !(parseNat s)} emptyCfg
 parseBlobLimit : String -> Either String $ Config Maybe
 parseBlobLimit s = pure $ {blobLimit := Just !(parseNat s)} emptyCfg
 
+parseWriteLimit : String -> Either String $ Config Maybe
+parseWriteLimit s = pure $ {writeLimit := Just !(parseNat s)} emptyCfg
+
 parseOut : String -> Either String $ Config Maybe
 parseOut s = pure $ {output := Just s} emptyCfg
 
@@ -119,7 +125,8 @@ optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeCfg "<size>") "clust
        -- , MkOpt ['3'] ["fuel3"] (ReqArg' parseFuel3 "<fuel3>") "fuel for the cmap generator"
        , MkOpt ['s'] ["seed"] (ReqArg' parseSeed "<seed>") "seed"
        , MkOpt ['m'] ["minclust"] (ReqArg' parseMinClust "<minclust>") "minimum amount of data clusters"
-       , MkOpt ['b'] ["blob-limit"] (ReqArg' parseBlobLimit "<blob-limit>") "maximum blob size"
+       , MkOpt ['b'] ["blob-limit"] (ReqArg' parseBlobLimit "<blob-limit>") "maximum image generation blob size"
+       , MkOpt ['w'] ["write-limit"] (ReqArg' parseWriteLimit "<write-limit>") "maximum write operation blob size"
        -- , MkOpt ['q'] ["quiet", "no-print"] (NoArg $ {printGen := Just False} emptyCfg) "don't print the generated value"
        , MkOpt ['N'] ["print-node"] (NoArg $ {printNode := Just True} emptyCfg) "print the generated Node"
        , MkOpt ['F'] ["print-fs"] (NoArg $ {printFs := Just True} emptyCfg) "pretty-print the generated filesystem tree"
@@ -145,7 +152,7 @@ main = do
         | Left err => die "file error: \{show err}"
     when cfg.printFs $ putStrLn $ printTree nodebn
     putStrLn "generating NodeOps..."
-    let Just ops = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genNodeOps cfg.fuel2 cfg.params ar nodebn
+    let Just ops = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genNodeOps cfg.fuel2 @{%search} @{const $ genBlob cfg.writeLimit} cfg.params ar nodebn
         | Nothing => die "failed to generate NodeOps"
     putStrLn "converting to C..."
     Right () <- writeFile (cfg.output ++ ".c") $ buildCProg cfg.params nodebn ops
