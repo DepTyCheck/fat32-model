@@ -363,40 +363,54 @@ printCOps i len root (Read idx off (S sz') lprf cont) = let path = index2UnixPat
 
         """# :: printCOps (i + 1) len _ cont
 printCOps i len root (Write idx off sz blob cont) with ((getAttrsByIndex root idx).readOnly)
-  printCOps i len root (Write idx off sz blob cont) | True = let path = index2UnixPath root idx in #"""
-          {
-            puts("Test \#{show i}/\#{show len}: Write[fail: readOnly] \#{path} of length \#{show sz} to offset \#{show off}");
-            errno = 0;
-            int fd = openat(rootfd, "\#{path}", O_WRONLY);
-            assert(fd < 0);
-            panic_on(errno != EACCES);
-          }
-
-        """# :: printCOps (i + 1) len _ cont
-  printCOps i len root (Write idx off Z blob cont) | False = let path = index2UnixPath root idx in #"""
+  printCOps i len root (Write idx off Z blob cont) | ro = let path = index2UnixPath root idx in #"""
           {
             puts("Test \#{show i}/\#{show len}: Write \#{path} of length 0 to offset \#{show off}");
             errno = 0;
-            int fd = openat(rootfd, "\#{path}", O_WRONLY);
+            uint32_t attr;
+            int fd = openat(rootfd, "\#{path}", O_RDONLY);
+            panic_on(fd < 0);
+            int res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
+            panic_on(res < 0);
+            uint32_t nattr = attr & (~ATTR_RO);
+            res = ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &nattr);
+            panic_on(res < 0);
+            res = close(fd);
+            panic_on(res < 0);
+            fd = openat(rootfd, "\#{path}", O_WRONLY);
             panic_on(fd < 0);
             off_t off = lseek(fd, \#{show off}, SEEK_SET);
             panic_on(off == (off_t) -1);
-            int res = close(fd);
+            res = ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
+            panic_on(res < 0);
+            res = close(fd);
             panic_on(res < 0);
           }
 
         """# :: printCOps (i + 1) len _ cont
-  printCOps i len root (Write idx off (S sz') blob cont) | False = let path = index2UnixPath root idx in #"""
+  printCOps i len root (Write idx off (S sz') blob cont) | ro = let path = index2UnixPath root idx in #"""
           {
             puts("Test \#{show i}/\#{show len}: Write \#{path} of length \#{show $ S sz'} to offset \#{show off}");
             const unsigned char buf[] = {\#{printVectBits8 blob}};
             errno = 0;
-            int fd = openat(rootfd, "\#{path}", O_WRONLY);
+            uint32_t attr;
+            int fd = openat(rootfd, "\#{path}", O_RDONLY);
+            panic_on(fd < 0);
+            int res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
+            panic_on(res < 0);
+            uint32_t nattr = attr & (~ATTR_RO);
+            res = ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &nattr);
+            panic_on(res < 0);
+            res = close(fd);
+            panic_on(res < 0);
+            fd = openat(rootfd, "\#{path}", O_WRONLY);
             panic_on(fd < 0);
             ssize_t cnt = nwrite(fd, buf, sizeof(buf), \#{show off});
             panic_on(cnt < 0);
             assert(cnt == sizeof(buf));
-            int res = close(fd);
+            res = ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
+            panic_on(res < 0);
+            res = close(fd);
             panic_on(res < 0);
           }
 
