@@ -143,20 +143,8 @@ bool : Bool -> String
 bool True = "true"
 bool False = "false"
 
-countPresent : SnocVectPresence k -> Nat
-countPresent [<] = 0
-countPresent (sx :< Present) = S $ countPresent sx
-countPresent (sx :< Absent) = countPresent sx
-
-getAttrsByIndex : (node : Node cfg ar fs) ->
-                  (idx : IndexIn node Rootless dirl) ->
-                  Metadata
-getAttrsByIndex node idx with (indexGet node idx)
-  _ | (Evidence _ (File meta _ ** _)) = meta
-  _ | (Evidence _ (Dir meta _ _ ** _)) = meta
-
 public export
-printCOps : Nat -> Nat -> {cfg : NodeCfg} -> (node : Node cfg ar Rootful) -> NodeOps cfg node -> List String
+printCOps : Nat -> Nat -> {cfg : NodeCfg} -> {ar : NodeArgs} -> (node : Node cfg ar Rootful) -> NodeOps cfg node -> List String
 printCOps i len root (GetFlags idx cont) with (indexGet root idx)
     _ | (Evidence _ ((File meta _) ** prf)) = let path = index2UnixPath root idx in #"""
           {
@@ -280,7 +268,7 @@ printCOps i len root (MvNode idx sidx idx2 dstname nameprf cont) = let
   dstdir = index2UnixPath (snd $ rmNode _ _ _ sidx) idx2
   in #"""
           {
-            puts("Test \#{show i}/\#{show len}: MvNode from \#{srcdir}/\#{srcname} to \#{dstdir}/\#{dstname}");
+            puts("Test \#{show i}/\#{show len}: MvNode from \#{srcdir}\#{srcname} to \#{dstdir}/\#{dstname}");
             errno = 0;
             int srcfd = openat(rootfd, "\#{srcdir}", O_PATH | O_DIRECTORY);
             panic_on(srcfd < 0);
@@ -404,5 +392,5 @@ printCOps i len root (Write idx off sz blob cont) with ((getAttrsByIndex root id
 printCOps _ _ _ Nop = [#"puts("All done!");\#n"#]
 
 public export
-buildCProg : (cfg : NodeCfg) -> (root : Node cfg ar Rootful) -> (ops : NodeOps cfg root) -> String
-buildCProg cfg root ops = let len = length ops in header len ++ concat (printCOps 1 len root ops) ++ footer
+buildCProg : (cfg : NodeCfg) -> (ar : NodeArgs) -> (root : Node cfg ar Rootful) -> (ops : NodeOps cfg root) -> String
+buildCProg cfg ar root ops = let len = length ops in header len ++ concat (printCOps 1 len root ops) ++ footer

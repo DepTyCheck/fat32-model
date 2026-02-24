@@ -13,6 +13,12 @@ import Data.Buffer.Indexed
 %prefix_record_projections off
 
 public export
+minusLeftSuccLTE : (a : Nat) -> (b : Nat) -> LTE a b -> S (minus b a) = minus (S b) a 
+minusLeftSuccLTE 0 0 x = Refl
+minusLeftSuccLTE 0 (S k) x = Refl
+minusLeftSuccLTE (S k) (S _) (LTESucc x) = minusLeftSuccLTE k _ x
+
+public export
 data Presence = Present | Absent
 %runElab derive "Presence" [Show, Eq]
 
@@ -22,6 +28,12 @@ namespace SnocVectPresence
         Lin : SnocVectPresence Z
         (:<) : SnocVectPresence k -> Presence -> SnocVectPresence (S k)
     %runElab deriveIndexed "SnocVectPresence" [Show]
+
+    public export
+    countPresent : SnocVectPresence k -> Nat
+    countPresent [<] = 0
+    countPresent (sx :< Present) = S $ countPresent sx
+    countPresent (sx :< Absent) = countPresent sx
 
 public export %hint
 genBits8 : Gen MaybeEmpty Bits8
@@ -65,6 +77,12 @@ namespace VectBits8
     splitAt 0 xs = MkVectBits8Pair [] xs
     splitAt (S k) (x :: xs) with (splitAt k xs)
       splitAt (S k) (x :: xs) | (MkVectBits8Pair fst snd) = MkVectBits8Pair (x :: fst) snd
+
+    public export
+    drop : (xs : VectBits8 n) -> (m : Nat) -> VectBits8 $ minus n m
+    drop [] m = []
+    drop (n :: x) 0 = n :: x
+    drop (n :: x) (S k) = drop x k
     
     public export
     Eq (VectBits8 k) where
@@ -169,15 +187,16 @@ namespace SnocVectBits8
       _ | (No contra) = slice sx src (S k) @{fromLteSucc $ ifNotRightThenLeft (decomposeLte _ _ lprf) contra}
 
     public export
-    truncate : {n : Nat} -> (ssx : SnocVectBits8 n) -> (off : Nat) -> SnocVectBits8 off
-    truncate [<] off = replicate _ 0
-    truncate {n = n@(S n')} ssx@(sx :< x) off with (isGTE off n)
-      _ | (Yes prf) = replace {p = SnocVectBits8} (plusCommutative _ _ `trans` plusMinusLte (S n') off prf) $ ssx <>< replicate (minus off $ S n') 0
-      _ | (No _) = truncate sx off
+    truncate : {n : Nat} -> (ssx : SnocVectBits8 n) -> (off : Nat) -> VectBits8 accl -> (SnocVectBits8 off, VectBits8 $ minus n off + accl)
+    truncate [<] off acc = (replicate _ 0, acc)
+    truncate {n = n@(S n')} ssx@(sx :< x) off acc with (isGTE off n)
+      _ | (Yes prf) = (replace {p = SnocVectBits8} (plusCommutative _ _ `trans` plusMinusLte (S n') off prf) $ ssx <>< replicate (minus off $ S n') 0, replace {p = VectBits8} (cong (+ accl) $ (sym $ minusPlusZero (S n') (minus off $ S n')) `trans` cong (minus $ S n') (plusCommutative (S n') (minus off $ S n') `trans` plusMinusLte _ _ prf)) acc)
+      _ | (No contra) = replace {p = \px => (SnocVectBits8 off, VectBits8 px)} ((sym $ plusSuccRightSucc (minus n' off) accl) `trans` cong (+ accl) {a = S $ minus n' off} (minusLeftSuccLTE _ _ $ fromLteSucc $ notLTEImpliesGT contra)) $ truncate sx off (x :: acc)
 
     public export
-    overwriteAt : {n : Nat} -> (sx : SnocVectBits8 n) -> (off : Nat) -> (ys : VectBits8 len) -> SnocVectBits8 (off + len)
-    overwriteAt sx off ys = truncate sx off <>< ys
+    overwriteAt : {n : Nat} -> (sx : SnocVectBits8 n) -> (off : Nat) -> {len : Nat} -> (ys : VectBits8 len) -> SnocVectBits8 (off + len + minus (minus n off) len)
+    overwriteAt sx off ys with (truncate sx off [])
+      _ | (sv, vs) = rewrite sym $ plusZeroRightNeutral $ minus n off in sv <>< ys <>< drop vs len
 
 %runElab deriveIndexed "VectBits8" [Show]
 %runElab deriveIndexed "SnocVectBits8" [Show]

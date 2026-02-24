@@ -75,6 +75,7 @@ mvNode (MkNodeCfg _) node idx sidx idx2 name nameprf {ar} with (compoundIndexGet
 
 public export
 writeNode : (cfg : NodeCfg) ->
+            {ar : NodeArgs} ->
             (root : Node cfg ar Rootful) ->
             (idx : IndexIn root Rootless FileI) ->
             (off : Nat) ->
@@ -82,7 +83,7 @@ writeNode : (cfg : NodeCfg) ->
             (blob : VectBits8 len) ->
             (ar' ** Node cfg ar' Rootful)
 writeNode (MkNodeCfg _) root idx off len blob with (indexGet root idx)
-  _ | (Evidence _ (File meta sx ** _)) = indexSet _ _ idx $ File meta $ overwriteAt sx off blob
+  _ | (Evidence _ (File meta sx ** _)) = if meta.readOnly then (_ ** root) else indexSet _ _ idx $ File meta $ overwriteAt sx off blob
   _ | (Evidence _ (Dir {} ** ati)) = void $ uninhabited ati
 
 public export

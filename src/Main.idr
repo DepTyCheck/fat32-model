@@ -155,7 +155,7 @@ main = do
     let Just ops = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genNodeOps cfg.fuel2 @{%search} @{const $ genBlob cfg.writeLimit} cfg.params ar nodebn
         | Nothing => die "failed to generate NodeOps"
     putStrLn "converting to C..."
-    Right () <- writeFile (cfg.output ++ ".c") $ buildCProg cfg.params nodebn ops
+    Right () <- writeFile (cfg.output ++ ".c") $ buildCProg cfg.params ar nodebn ops
         | Left err => die "file error: \{show err}"
     pure ()
 

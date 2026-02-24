@@ -238,6 +238,14 @@ namespace HSnocVectMaybeNode
         _ | (_ ** xs') = (_ ** (xs' :< x))
 
 public export
+getAttrsByIndex : (node : Node cfg ar fs) ->
+                  (idx : IndexIn node Rootless dirl) ->
+                  Metadata
+getAttrsByIndex node idx with (indexGet node idx)
+  _ | (Evidence _ (File meta _ ** _)) = meta
+  _ | (Evidence _ (Dir meta _ _ ** _)) = meta
+
+public export
 getBlobByFileIndex : (node : Node cfg ar fs) ->
                      (idx : IndexIn node Rootless FileI) ->
                      (k ** SnocVectBits8 k)
