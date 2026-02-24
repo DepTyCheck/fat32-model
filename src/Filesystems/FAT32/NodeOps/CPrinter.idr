@@ -148,6 +148,13 @@ countPresent [<] = 0
 countPresent (sx :< Present) = S $ countPresent sx
 countPresent (sx :< Absent) = countPresent sx
 
+getAttrsByIndex : (node : Node cfg ar fs) ->
+                  (idx : IndexIn node Rootless dirl) ->
+                  Metadata
+getAttrsByIndex node idx with (indexGet node idx)
+  _ | (Evidence _ (File meta _ ** _)) = meta
+  _ | (Evidence _ (Dir meta _ _ ** _)) = meta
+
 public export
 printCOps : Nat -> Nat -> {cfg : NodeCfg} -> (node : Node cfg ar Rootful) -> NodeOps cfg node -> List String
 printCOps i len root (GetFlags idx cont) with (indexGet root idx)
@@ -355,9 +362,20 @@ printCOps i len root (Read idx off (S sz') lprf cont) = let path = index2UnixPat
           }
 
         """# :: printCOps (i + 1) len _ cont
-printCOps i len root (Write idx off Z blob cont) = let path = index2UnixPath root idx in #"""
+printCOps i len root (Write idx off sz blob cont) with ((getAttrsByIndex root idx).readOnly)
+  printCOps i len root (Write idx off sz blob cont) | True = let path = index2UnixPath root idx in #"""
           {
-            puts("Test \#{show i}/\#{show len}: Write \#{path} of length 0 from offset \#{show off}");
+            puts("Test \#{show i}/\#{show len}: Write[fail: readOnly] \#{path} of length \#{show sz} to offset \#{show off}");
+            errno = 0;
+            int fd = openat(rootfd, "\#{path}", O_WRONLY);
+            assert(fd < 0);
+            panic_on(errno != EACCES);
+          }
+
+        """# :: printCOps (i + 1) len _ cont
+  printCOps i len root (Write idx off Z blob cont) | False = let path = index2UnixPath root idx in #"""
+          {
+            puts("Test \#{show i}/\#{show len}: Write \#{path} of length 0 to offset \#{show off}");
             errno = 0;
             int fd = openat(rootfd, "\#{path}", O_WRONLY);
             panic_on(fd < 0);
@@ -368,9 +386,9 @@ printCOps i len root (Write idx off Z blob cont) = let path = index2UnixPath roo
           }
 
         """# :: printCOps (i + 1) len _ cont
-printCOps i len root (Write idx off (S sz') blob cont) = let path = index2UnixPath root idx in #"""
+  printCOps i len root (Write idx off (S sz') blob cont) | False = let path = index2UnixPath root idx in #"""
           {
-            puts("Test \#{show i}/\#{show len}: Write \#{path} of length \#{show $ S sz'} from offset \#{show off}");
+            puts("Test \#{show i}/\#{show len}: Write \#{path} of length \#{show $ S sz'} to offset \#{show off}");
             const unsigned char buf[] = {\#{printVectBits8 blob}};
             errno = 0;
             int fd = openat(rootfd, "\#{path}", O_WRONLY);
