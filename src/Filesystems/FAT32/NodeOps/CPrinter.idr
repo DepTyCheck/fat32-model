@@ -268,7 +268,7 @@ printCOps i len root (MvNode idx sidx idx2 dstname nameprf cont) = let
   dstdir = index2UnixPath (snd $ rmNode _ _ _ sidx) idx2
   in #"""
           {
-            puts("Test \#{show i}/\#{show len}: MvNode from \#{srcdir}\#{srcname} to \#{dstdir}/\#{dstname}");
+            puts("Test \#{show i}/\#{show len}: MvNode from \#{srcdir}\#{srcname} to \#{dstdir}\#{dstname}");
             errno = 0;
             int srcfd = openat(rootfd, "\#{srcdir}", O_PATH | O_DIRECTORY);
             panic_on(srcfd < 0);
