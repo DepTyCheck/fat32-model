@@ -2,7 +2,9 @@
 
 set -e
 
-if [ $# -lt 2 ]; then
+die() { echo "$*" 1>&2 ; exit 1; }
+
+if [ $# -lt 1 ]; then
     die "not enough arguments. usage: $0 <dir>"
 fi
 
@@ -10,14 +12,26 @@ TMPDIR=$(mktemp -d)
 MOUNTPOINT=/mnt
 LOOPDEVICE=/dev/loop0
 
-for f in "$1"/*.img; do
-    gcc -Wall -Wextra -pedantic --std=gnu99 "${f%.img}.c" -o "${f%.img}.test" 2>&1 | tee -a "${f%.img}.log"
+for f in "$1"/*.img; do {
+    echo "Tesing $f..."
+    echo "Compiling..."
+    gcc -Wall --std=gnu99 "${f%.img}.c" -o "${f%.img}.test"
+    echo "Copying image..."
     cp -f "$f" "$TMPDIR/curr.img"
-    losetup $LOOPDEVICE "$TMPDIR/curr.img" 2>&1 | tee -a "${f%.img}.log"
+    echo "Setting up loop device..."
+    losetup $LOOPDEVICE "$TMPDIR/curr.img"
+    echo "Resetting llvm-cov..."
     echo 1 > /sys/kernel/debug/llvm-cov/reset
-    mount $LOOPDEVICE $MOUNTPOINT 2>&1 | tee -a "${f%.img}.log"
-    "${f%.img}.test" $MOUNTPOINT 2>&1 | tee -a "${f%.img}.log"
-    umount $MOUNTPOINT 2>&1 | tee -a "${f%.img}.log"
+    echo "Mounting..."
+    mount $LOOPDEVICE $MOUNTPOINT
+    echo "Testing..."
+    "${f%.img}.test" $MOUNTPOINT
+    echo "Unmounting..."
+    umount $MOUNTPOINT
+    echo "Collecting coverage info..."
     cp /sys/kernel/debug/llvm-cov/profraw "${f%.img}.profraw"
-    losetup -d $LOOPDEVICE 2>&1 | tee -a "${f%.img}.log"
+    echo "Resetting loop device..."
+    losetup -d $LOOPDEVICE
+    echo "$f done!"
+} 2>&1 | tee -a "${f%.img}.log"
 done
