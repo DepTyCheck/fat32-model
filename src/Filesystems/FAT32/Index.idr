@@ -55,7 +55,7 @@ namespace HSnocVectMaybeNode
                (ars' ** HSnocVectMaybeNode cfg k ars' prs)
 
     public export
-    data NamesWeakened : (ff : UniqNames prs) -> (ff' : UniqNames prs') -> Type where
+    data NamesWeakened : {0 prs : SnocVectPresence k} -> (ff : UniqNames prs) -> {0 prs' : SnocVectPresence k'} -> (ff' : UniqNames prs') -> Type where
       WEmpty : NamesWeakened Empty Empty
       WErased : NamesWeakened ff ff' ->
                 NamesWeakened (NewName ff f @{nprf}) (NewName ff' Nothing @{nprf'})
