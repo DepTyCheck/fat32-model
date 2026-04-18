@@ -44,6 +44,7 @@ record Config (m : Type -> Type) where
     printNode  : m Bool
     printFs    : m Bool
     printCmap  : m Bool
+    imageOnly  : m Bool
     output     : m String
     help       : m Bool
 
@@ -61,6 +62,7 @@ emptyCfg = MkConfig
     , printNode  = Nothing
     , printFs    = Nothing
     , printCmap  = Nothing
+    , imageOnly  = Nothing
     , output     = Nothing
     , help       = Nothing
     }
@@ -80,6 +82,7 @@ defaultCfg = MkConfig
     , printNode  = False
     , printFs    = False
     , printCmap  = False
+    , imageOnly  = False
     , output     = "out.img"
     , help       = False
     }
@@ -131,6 +134,7 @@ optDescs = [ MkOpt ['c'] ["cluster-size"] (ReqArg' parseNodeCfg "<size>") "clust
        , MkOpt ['N'] ["print-node"] (NoArg $ {printNode := Just True} emptyCfg) "print the generated Node"
        , MkOpt ['F'] ["print-fs"] (NoArg $ {printFs := Just True} emptyCfg) "pretty-print the generated filesystem tree"
        , MkOpt ['C'] ["print-cmap"] (NoArg $ {printCmap := Just True} emptyCfg) "print the generated cluster map"
+       , MkOpt ['I'] ["image-only"] (NoArg $ {imageOnly := Just True} emptyCfg) "generate only the image without operations"
        , MkOpt ['h'] ["help"] (NoArg $ {help := Just True} emptyCfg) "print usage information"
        , MkOpt ['o'] ["output"] (ReqArg' parseOut "<output>") "output image filename"
        ]
@@ -151,13 +155,14 @@ main = do
     Right () <- writeBufferToFile (cfg.output ++ ".img") image size
         | Left err => die "file error: \{show err}"
     when cfg.printFs $ putStrLn $ printTree nodebn
-    putStrLn "generating NodeOps..."
-    let Just ops = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genNodeOps cfg.fuel2 @{%search} @{const $ genBlob cfg.writeLimit} cfg.params ar nodebn
-        | Nothing => die "failed to generate NodeOps"
-    putStrLn "converting to C..."
-    Right () <- writeFile (cfg.output ++ ".c") $ buildCProg cfg.params ar nodebn ops
-        | Left err => die "file error: \{show err}"
-    pure ()
+    when (not cfg.imageOnly) $ do
+        putStrLn "generating NodeOps..."
+        let Just ops = runIdentity $ pick @{ConstSeed $ mkStdGen cfg.seed} $ genNodeOps cfg.fuel2 @{%search} @{const $ genBlob cfg.writeLimit} cfg.params ar nodebn
+            | Nothing => die "failed to generate NodeOps"
+        putStrLn "converting to C..."
+        Right () <- writeFile (cfg.output ++ ".c") $ buildCProg cfg.params ar nodebn ops
+            | Left err => die "file error: \{show err}"
+        pure ()
 
 
 -- %logging "deptycheck.derive" 5
