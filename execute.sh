@@ -11,6 +11,9 @@ fi
 TMPDIR=$(mktemp -d)
 MOUNTPOINT=/mnt
 LOOPDEVICE=/dev/loop0
+    
+echo "Resetting llvm-cov..."
+echo 1 > /sys/kernel/debug/llvm-cov/reset
 
 for f in "$1"/*.img; do {
     echo "Tesing $f..."
@@ -20,18 +23,17 @@ for f in "$1"/*.img; do {
     cp -f "$f" "$TMPDIR/curr.img"
     echo "Setting up loop device..."
     losetup $LOOPDEVICE "$TMPDIR/curr.img"
-    echo "Resetting llvm-cov..."
-    echo 1 > /sys/kernel/debug/llvm-cov/reset
     echo "Mounting..."
-    mount $LOOPDEVICE $MOUNTPOINT
+    mount -t msdos $LOOPDEVICE $MOUNTPOINT
     echo "Testing..."
-    "${f%.img}.test" $MOUNTPOINT
+    setpriv --bounding-set '-dac_override' "${f%.img}.test" $MOUNTPOINT
     echo "Unmounting..."
     umount $MOUNTPOINT
-    echo "Collecting coverage info..."
-    cp /sys/kernel/debug/llvm-cov/profraw "${f%.img}.profraw"
     echo "Resetting loop device..."
     losetup -d $LOOPDEVICE
     echo "$f done!"
 } 2>&1 | tee -a "${f%.img}.log"
 done
+
+# echo "Collecting coverage info..."
+# cp /sys/kernel/debug/llvm-cov/profraw "${f%.img}.profraw"
