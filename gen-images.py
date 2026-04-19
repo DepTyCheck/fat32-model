@@ -1,17 +1,28 @@
+import argparse
 import asyncio
 import os
 import subprocess
-import sys
 import zlib
 from base64 import b64encode
 from pathlib import PosixPath
 from random import choice, randint
 
 CLUSTS = [512, 1024, 2048, 4096]
-FS = "vfat"
+FS = "msdos"
 
 
-async def gen(k, path, syzconv=False, seed=None, fuel1=None, fuel2=None, clust=None, blob_size=None, write_size=None):
+async def gen(
+    k,
+    path,
+    syzconv,
+    genops,
+    seed=None,
+    fuel1=None,
+    fuel2=None,
+    clust=None,
+    blob_size=None,
+    write_size=None,
+):
     if seed is None:
         seed = randint(0, 2**64 - 1)
     if fuel1 is None:
@@ -49,6 +60,7 @@ async def gen(k, path, syzconv=False, seed=None, fuel1=None, fuel2=None, clust=N
         str(write_size),
         "-o",
         str(outpath),
+        *([] if genops else ["--images-only"]),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
@@ -56,7 +68,10 @@ async def gen(k, path, syzconv=False, seed=None, fuel1=None, fuel2=None, clust=N
         print(f"[#{k:03}] {line.decode()}", end="")
     await proc.wait()
     if proc.returncode != 0:
-        print(f"task #{k} failed with exit code {proc.returncode}")
+        print(f"task #{k} failed with exit code {proc.returncode}, retrying...")
+        await gen(
+            k, path, syzconv, genops, seed, fuel1, fuel2, clust, blob_size, write_size
+        )
         return
     if syzconv:
         print(f"task {k} finished generating, converting...")
@@ -74,14 +89,29 @@ async def gen(k, path, syzconv=False, seed=None, fuel1=None, fuel2=None, clust=N
             syz.write('")\n')
         print(f"image {k} converted!")
     else:
-        print(f"task {k} finished generating!") 
+        print(f"task {k} finished generating!")
 
 
 async def main():
-    _, N, path = sys.argv
-    N = int(N)
-    os.makedirs(PosixPath(path) / "syz", exist_ok=True)
-    await asyncio.gather(*(gen(k, path) for k in range(N)))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("N", type=int, help="number of images")
+    parser.add_argument("path", type=str, help="images directory path")
+    parser.add_argument(
+        "-p", "--procs", type=int, default=os.cpu_count(), help="process count"
+    )
+    parser.add_argument("--syz", action="store_true", help="generate syzkaller seeds")
+    parser.add_argument("--ops", action="store_true", help="generate operations")
+    args = parser.parse_args()
+
+    if args.syz:
+        os.makedirs(PosixPath(args.path) / "syz", exist_ok=True)
+    tasks = (gen(k, args.path, args.syz, args.ops) for k in range(args.N))
+
+    async def worker():
+        for task in tasks:
+            await task
+
+    await asyncio.gather(*[worker() for i in range(args.procs)])  # type: ignore
 
 
 if __name__ == "__main__":
