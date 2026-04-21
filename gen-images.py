@@ -86,6 +86,7 @@ async def gen(
             path,
             syzconv,
             genops,
+            z,
             randint(0, 2**64 - 1),
             fuel1,
             fuel2,
