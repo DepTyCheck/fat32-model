@@ -60,7 +60,7 @@ async def gen(
         str(write_size),
         "-o",
         str(outpath),
-        *([] if genops else ["--images-only"]),
+        *([] if genops else ["--image-only"]),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
