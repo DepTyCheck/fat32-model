@@ -7,12 +7,15 @@ from base64 import b64encode
 from pathlib import PosixPath
 from random import choice, randint
 
+from tqdm import tqdm
+
 CLUSTS = [512, 1024, 2048, 4096]
 FS = "vfat"
 
 
 async def gen(
     k,
+    pbar,
     path,
     syzconv,
     genops,
@@ -70,7 +73,17 @@ async def gen(
     if proc.returncode != 0:
         print(f"task #{k} failed with exit code {proc.returncode}, retrying...")
         await gen(
-            k, path, syzconv, genops, randint(0, 2**64 - 1), fuel1, fuel2, clust, blob_size, write_size
+            k,
+            pbar,
+            path,
+            syzconv,
+            genops,
+            randint(0, 2**64 - 1),
+            fuel1,
+            fuel2,
+            clust,
+            blob_size,
+            write_size,
         )
         return
     if syzconv:
@@ -91,6 +104,8 @@ async def gen(
     else:
         print(f"task {k} finished generating!")
 
+    pbar.update(1)
+
 
 async def main():
     parser = argparse.ArgumentParser()
@@ -106,13 +121,25 @@ async def main():
     os.makedirs(PosixPath(args.path), exist_ok=True)
     if args.syz:
         os.makedirs(PosixPath(args.path) / "syz", exist_ok=True)
-    tasks = (gen(k, args.path, args.syz, args.ops) for k in range(args.N))
+
+    pbar = tqdm(total=args.N)
+
+    task_queue = asyncio.Queue()
+    for k in range(args.N):
+        task_queue.put_nowait(k)
 
     async def worker():
-        for task in tasks:
-            await task
+        while not task_queue.empty():
+            k = await task_queue.get()
+            try:
+                await gen(k, pbar, args.path, args.syz, args.ops)
+            finally:
+                task_queue.task_done()
 
-    await asyncio.gather(*[worker() for i in range(args.procs)])  # type: ignore
+    workers = [asyncio.create_task(worker()) for _ in range(args.procs)]
+    await asyncio.gather(*workers)
+
+    pbar.close()
 
 
 if __name__ == "__main__":
