@@ -70,7 +70,7 @@ async def gen(
     if proc.returncode != 0:
         print(f"task #{k} failed with exit code {proc.returncode}, retrying...")
         await gen(
-            k, path, syzconv, genops, seed, fuel1, fuel2, clust, blob_size, write_size
+            k, path, syzconv, genops, randint(0, 2**64 - 1), fuel1, fuel2, clust, blob_size, write_size
         )
         return
     if syzconv:
