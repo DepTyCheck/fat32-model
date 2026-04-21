@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import compression.zstd as zstd
 import os
 import subprocess
 import zlib
@@ -7,7 +8,7 @@ from base64 import b64encode
 from pathlib import PosixPath
 from random import choice, randint
 
-from tqdm import tqdm
+from tqdm.rich import tqdm
 
 CLUSTS = [512, 1024, 2048, 4096]
 FS = "vfat"
@@ -19,6 +20,7 @@ async def gen(
     path,
     syzconv,
     genops,
+    z,
     seed=None,
     fuel1=None,
     fuel2=None,
@@ -41,6 +43,7 @@ async def gen(
 
     outpath = PosixPath(path) / f"image_{k:03}"
     imgpath = PosixPath(path) / f"image_{k:03}.img"
+    zpath = PosixPath(path) / f"image_{k:03}.img.zst"
     syzpath = PosixPath(path) / "syz" / f"syz_mount_image_{FS}_idris_{k:03}"
 
     print(
@@ -87,7 +90,7 @@ async def gen(
         )
         return
     if syzconv:
-        print(f"task {k} finished generating, converting...")
+        print(f"converting image {k}...")
         with open(imgpath, "rb") as img:
             data = img.read()
         cvt = b64encode(zlib.compress(data)).decode()
@@ -101,9 +104,15 @@ async def gen(
             syz.write(cvt)
             syz.write('")\n')
         print(f"image {k} converted!")
-    else:
-        print(f"task {k} finished generating!")
+    if z:
+        print(f"compressing image {k}...")
+        with open(imgpath, "rb") as img:
+            with zstd.open(zpath, "wb") as zimg:
+                zimg.write(img.read())
+        os.remove(imgpath)
+        print(f"image {k} compressed!")
 
+    print(f"task {k} finished generating!")
     pbar.update(1)
 
 
@@ -116,6 +125,7 @@ async def main():
     )
     parser.add_argument("--syz", action="store_true", help="generate syzkaller seeds")
     parser.add_argument("--ops", action="store_true", help="generate operations")
+    parser.add_argument("-z", action="store_true", help="compress images with zstd")
     args = parser.parse_args()
 
     os.makedirs(PosixPath(args.path), exist_ok=True)
@@ -132,7 +142,7 @@ async def main():
         while not task_queue.empty():
             k = await task_queue.get()
             try:
-                await gen(k, pbar, args.path, args.syz, args.ops)
+                await gen(k, pbar, args.path, args.syz, args.ops, args.z)
             finally:
                 task_queue.task_done()
 
