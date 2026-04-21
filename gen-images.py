@@ -1,14 +1,19 @@
 import argparse
 import asyncio
-import compression.zstd as zstd
 import os
 import subprocess
+import sys
 import zlib
 from base64 import b64encode
 from pathlib import PosixPath
 from random import choice, randint
 
 from tqdm.rich import tqdm
+
+if sys.version_info >= (3, 14):
+    from compression import zstd
+else:
+    from backports import zstd
 
 CLUSTS = [512, 1024, 2048, 4096]
 FS = "vfat"
