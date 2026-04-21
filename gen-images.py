@@ -103,6 +103,7 @@ async def main():
     parser.add_argument("--ops", action="store_true", help="generate operations")
     args = parser.parse_args()
 
+    os.makedirs(PosixPath(args.path), exist_ok=True)
     if args.syz:
         os.makedirs(PosixPath(args.path) / "syz", exist_ok=True)
     tasks = (gen(k, args.path, args.syz, args.ops) for k in range(args.N))
