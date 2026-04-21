@@ -361,15 +361,32 @@ printCOps i len root (Write idx off sz blob cont) with ((getAttrsByIndex root id
           }
 
         """# :: printCOps (i + 1) len _ cont
-  printCOps i len root (Write idx off Z blob cont) | False = let path = index2UnixPath root idx in #"""
+  printCOps i len root (Write idx off Z blob cont) | False = let
+    path = index2UnixPath root idx
+    bloblen = fst $ getBlobByFileIndex root idx
+    in case compare off bloblen of
+      LT => #"""
           {
-            puts("Test \#{show i}/\#{show len}: Write \#{path} of length 0 to offset \#{show off}");
+            puts("Test \#{show i}/\#{show len}: Write \#{path} of length 0 to offset \#{show off} (lseek)");
             errno = 0;
             int fd = openat(rootfd, "\#{path}", O_WRONLY);
             panic_on(fd < 0);
             off_t off = lseek(fd, \#{show off}, SEEK_SET);
             panic_on(off == (off_t) -1);
             int res = close(fd);
+            panic_on(res < 0);
+          }
+
+        """# :: printCOps (i + 1) len _ cont
+      _ => #"""
+          {
+            puts("Test \#{show i}/\#{show len}: Write \#{path} of length 0 to offset \#{show off} (ftruncate)");
+            errno = 0;
+            int fd = openat(rootfd, "\#{path}", O_WRONLY);
+            panic_on(fd < 0);
+            int res = ftruncate(fd, \#{show off});
+            panic_on(res < 0);
+            res = close(fd);
             panic_on(res < 0);
           }
 
