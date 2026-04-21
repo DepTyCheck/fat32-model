@@ -8,7 +8,7 @@ from pathlib import PosixPath
 from random import choice, randint
 
 CLUSTS = [512, 1024, 2048, 4096]
-FS = "msdos"
+FS = "vfat"
 
 
 async def gen(

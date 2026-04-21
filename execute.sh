@@ -24,7 +24,7 @@ for f in "$1"/*.img; do {
     echo "Setting up loop device..."
     losetup $LOOPDEVICE "$TMPDIR/curr.img"
     echo "Mounting..."
-    mount -t msdos $LOOPDEVICE $MOUNTPOINT
+    mount $LOOPDEVICE $MOUNTPOINT
     echo "Testing..."
     setpriv --bounding-set '-dac_override' "${f%.img}.test" $MOUNTPOINT
     echo "Unmounting..."
