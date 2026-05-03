@@ -2,7 +2,7 @@ package fat32-model
 -- version =
 authors = "elkcl"
 -- maintainers =
--- license =
+license = "Apache-2.0"
 -- brief =
 -- readme =
 -- homepage =
@@ -26,7 +26,11 @@ depends = deptycheck
 
 -- modules to install
 modules = Filesystems.FAT32
+        , Filesystems.FAT32.Gen
+        , Filesystems.FAT32.Index
         , Filesystems.FAT32.Image
+        , Filesystems.FAT32.NodeOps
+        , Filesystems.FAT32.NodeOps.CPrinter
         , Filesystems.FAT32.Derived.Node
         , Filesystems.FAT32.Derived.NodeOps
         , Data.Monomorphic.Vect
