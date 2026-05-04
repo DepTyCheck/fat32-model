@@ -27,6 +27,7 @@ depends = deptycheck
 -- modules to install
 modules = Filesystems.FAT32
         , Filesystems.FAT32.Gen
+        , Filesystems.FAT32.Utils
         , Filesystems.FAT32.Index
         , Filesystems.FAT32.Image
         , Filesystems.FAT32.NodeOps
