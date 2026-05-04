@@ -20,6 +20,8 @@ import Filesystems.FAT32.Utils
 import Filesystems.FAT32.FSStructs
 import System.Random.Pure.StdGen
 import System
+import Data.Nat
+import Data.Nat.Division
 
 %default total
 %prefix_record_projections off
@@ -34,7 +36,7 @@ ind2 t f (S k) x = f (ind2 t f k x)
 LTE_Workaround : LTE a b => LTE (100+a) (100+b)
 LTE_Workaround @{prf} = ind2 LTE LTESucc 100 prf
 
-padBlob : (clustSize : Nat) -> (0 clustNZ : IsSucc clustSize) -> {n : Nat} -> SnocVectBits8 n -> SnocVectBits8 (divCeilNZ n clustSize @{clustNZ} * clustSize)
+padBlob : (clustSize : Nat) -> (0 clustNZ : IsSucc clustSize) -> {n : Nat} -> SnocVectBits8 n -> SnocVectBits8 (divCeilNZ' n clustSize @{clustNZ} * clustSize)
 padBlob clustSize clustNZ sx with (DivisionTheorem n clustSize clustNZ clustNZ, boundModNatNZ n clustSize clustNZ) | (modNatNZ n clustSize clustNZ)
     _ | (cc, blt) | 0  = rewrite sym cc in sx
     _ | (cc, blt) | m@(S k) = do
@@ -102,20 +104,20 @@ writeBlob : (clustSize' : Nat) ->
             (cmap : IArray cls (Fin tcls)) ->
             (dataOffset : Nat) ->
             (fatOffset : Nat) ->
-            (0 clsBounds : LTE (currClust + divCeilNZ k clustSize') cls) =>
+            (0 clsBounds : LTE (currClust + divCeilNZ' k clustSize') cls) =>
             (0 tszBounds : LTE (dataOffset + tcls * clustSize') tsz) =>
             (0 fatBounds : LTE (fatOffset + tcls * 4) tsz) =>
             (image : MBuffer s tsz) ->
             Pure s ()
 writeBlob clustSize' blob currClust cmap dataOffset fatOffset image = do
     let blobBuf = packVect $ padBlob clustSize' clustNZ blob
-    for_ (mapRangeWithNextVal $ boundedRangeLT 0 (divCeilNZ k clustSize')) $ forFile blobBuf
-    where forFile : IBuffer (divCeilNZ k clustSize' * clustSize') -> (Subset Nat (`LT` divCeilNZ k clustSize'), Maybe $ Subset Nat (`LT` divCeilNZ k clustSize')) -> Pure s ()
+    for_ (mapRangeWithNextVal $ boundedRangeLT 0 (divCeilNZ' k clustSize')) $ forFile blobBuf
+    where forFile : IBuffer (divCeilNZ' k clustSize' * clustSize') -> (Subset Nat (`LT` divCeilNZ' k clustSize'), Maybe $ Subset Nat (`LT` divCeilNZ' k clustSize')) -> Pure s ()
           forFile bbuf (Element cl clp, nxt) = do
               let absclust : Fin tcls
                   absclust = atNat cmap (currClust + cl) @{
                       rewrite plusSuccRightSucc currClust cl
-                      in plusLteMonotoneLeft currClust (S cl) (divCeilNZ k clustSize') clp
+                      in plusLteMonotoneLeft currClust (S cl) (divCeilNZ' k clustSize') clp
                               `transitive` clsBounds
                   }
               let nxtclust : Nat
@@ -123,12 +125,12 @@ writeBlob clustSize' blob currClust cmap dataOffset fatOffset image = do
                                   Nothing => 0x0FFFFFF8
                                   (Just $ Element nx nxp) => 2 + (finToNat $ atNat cmap (currClust + nx) @{
                                       rewrite plusSuccRightSucc currClust nx
-                                      in plusLteMonotoneLeft currClust (S nx) (divCeilNZ k clustSize') nxp
+                                      in plusLteMonotoneLeft currClust (S nx) (divCeilNZ' k clustSize') nxp
                                       `transitive` clsBounds
                                   })
               lift1 $ icopy bbuf (cl * clustSize') (dataOffset + finToNat absclust * clustSize') clustSize' image @{ do
                   rewrite plusCommutative (cl * clustSize') clustSize'
-                  (multLteMonotoneLeft (S cl) (divCeilNZ k clustSize') clustSize' clp)
+                  (multLteMonotoneLeft (S cl) (divCeilNZ' k clustSize') clustSize' clp)
               } @{ do
                   rewrite sym $ plusAssociative dataOffset (finToNat absclust * clustSize') clustSize'
                   rewrite plusCommutative (finToNat absclust * clustSize') clustSize'

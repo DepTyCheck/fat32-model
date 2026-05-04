@@ -1,6 +1,7 @@
 module Filesystems.FAT32.FSStructs
 
 import Data.Nat
+import Data.Nat.Division
 import Data.Bits
 import Deriving.DepTyCheck.Gen
 import Data.SnocVect
@@ -14,7 +15,6 @@ import Data.Array.Mutable
 %prefix_record_projections off
 %hide Data.Array.Index.lsl
 %hide Data.Array.Index.refl
-%hide Data.Nat.divCeilNZ
 
 ind2 : (0 t : Nat -> Nat -> Type) -> (forall n, m. t n m -> t (S n) (S m)) -> (k : Nat) -> t n m -> t (k+n) (k+m)
 ind2 t f 0     x = x
@@ -110,7 +110,7 @@ record BootSectorData cs m n where
     {auto 0 sizePrf : n = rsvdSecCnt * bytsPerSec + (numFats * (fatSz * bytsPerSec) + dataClust * clustSize)}
     {auto 0 tclsPrf : m = dataClust}
     {auto 0 csPrf : cs = clustSize}
-    {auto 0 fatPrf : fatSz = divCeilNZ (8 + dataClust * 4) bytsPerSec @{bytsNZ}}
+    {auto 0 fatPrf : fatSz = divCeilNZ' (8 + dataClust * 4) bytsPerSec @{bytsNZ}}
 
 export
 genBootSectorData : (clustSize : Nat) -> (dataClust : Nat) -> (rootClust : Nat) -> Gen MaybeEmpty (n ** BootSectorData clustSize dataClust n)
@@ -123,7 +123,7 @@ genBootSectorData clustSize dataClust rootClust = do
     let numFats : Nat
         numFats = 2
     let fatSz : Nat        
-        fatSz = divCeilNZ (8 + dataClust * 4) bytsPerSec 
+        fatSz = divCeilNZ' (8 + dataClust * 4) bytsPerSec 
     -- activeFat       <- genFin numFats
     -- onlyOneFat      <- elements' $ the (List _) [False, True]
     let activeFat = 0

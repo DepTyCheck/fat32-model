@@ -11,7 +11,6 @@ import Syntax.IHateParens
 %default total
 %prefix_record_projections off
 %language ElabReflection
-%hide Data.Nat.divCeilNZ
 
 
 public export

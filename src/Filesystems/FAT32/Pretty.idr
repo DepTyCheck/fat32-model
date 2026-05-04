@@ -5,7 +5,6 @@ import Data.SnocVect
 import Data.Nat.Views
 
 %default total
-%hide Data.Nat.divCeilNZ
 %language ElabReflection
 %prefix_record_projections off
 

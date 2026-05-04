@@ -5,7 +5,6 @@ import Filesystems.FAT32.Index
 import Filesystems.FAT32.NodeOps
 
 %default total
-%hide Data.Nat.divCeilNZ
 %prefix_record_projections off
 
 header : Nat -> String

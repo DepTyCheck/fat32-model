@@ -26,7 +26,6 @@ import System.File.ReadWrite
 import Control.Monad.Pure
 
 %default total
-%hide Data.Nat.divCeilNZ
 %hide Data.Array.Index.lsl
 %hide Data.Array.Index.refl
 %cg chez lazy=weakMemo

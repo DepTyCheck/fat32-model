@@ -73,16 +73,8 @@ public export
 multLteMonotone : {a, b, c, d : Nat} -> LTE a b -> LTE c d -> LTE (a * c) (b * d)
 multLteMonotone x y = multLteMonotoneLeft a b c x `transitive` multLteMonotoneRight b c d y
 
-%hide Data.Nat.divCeilNZ
-
-public export
-divCeilNZ : Nat -> (y: Nat) -> (0 _ : IsSucc y) => Nat
-divCeilNZ x y = case (modNatNZ x y %search) of
-    Z   => divNatNZ x y %search
-    S _ => S (divNatNZ x y %search)
-
 export
-divCeilMultLTE : (a : Nat) -> (b : Nat) -> {0 bnz : IsSucc b} -> LTE a (divCeilNZ a b @{bnz} * b)
+divCeilMultLTE : (a : Nat) -> (b : Nat) -> {0 bnz : IsSucc b} -> LTE a (divCeilNZ' a b @{bnz} * b)
 divCeilMultLTE a b with (DivisionTheorem a b bnz bnz, boundModNatNZ a b bnz) | (modNatNZ a b bnz)
     divCeilMultLTE a b | (dv, mb) | 0 = rewrite sym dv in reflexive
     divCeilMultLTE a b | (dv, mb) | (S k) = rewrite cong (\x => LTE x $ b + divNatNZ a b bnz * b) dv in plusLteMonotoneRight (divNatNZ a b bnz * b) _ _ $ lteSuccLeft mb
@@ -98,7 +90,7 @@ isSuccToLTE : IsSucc a -> LTE 1 a
 isSuccToLTE ItIsSucc = LTESucc LTEZero
 
 public export
-divCeilIsSucc : (a : Nat) -> (b : Nat) -> {0 bnz : IsSucc b} -> (0 prf : IsSucc a) => LTE 1 (divCeilNZ a b @{bnz})
+divCeilIsSucc : (a : Nat) -> (b : Nat) -> {0 bnz : IsSucc b} -> (0 prf : IsSucc a) => LTE 1 (divCeilNZ' a b @{bnz})
 divCeilIsSucc 0 b = void $ uninhabited prf
 divCeilIsSucc (S k) b with (DivisionTheorem (S k) b bnz bnz) | (modNatNZ (S k) b bnz)
   divCeilIsSucc (S k) b | dv | 0 = isSuccToLTE $ fst $ multIsSucc (divNatNZ (S k) b bnz) b (rewrite sym dv in ItIsSucc)

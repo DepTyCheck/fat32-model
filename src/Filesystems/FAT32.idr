@@ -13,7 +13,6 @@ import Data.Bits
 import public Filesystems.FAT32.Utils
 
 %default total
-%hide Data.Nat.divCeilNZ
 %language ElabReflection
 %prefix_record_projections off
 
@@ -169,7 +168,7 @@ namespace Node
                (meta : Metadata) ->
                {k : Nat} ->
                SnocVectBits8 k ->
-               Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ k clustSize) (divCeilNZ k clustSize) @{Relation.reflexive}) Rootless
+               Node (MkNodeCfg clustSize) (MkNodeArgs (divCeilNZ' k clustSize) (divCeilNZ' k clustSize) @{Relation.reflexive}) Rootless
         Dir : forall clustSize.
               (0 clustNZ : IsSucc clustSize) =>
               (meta : Metadata) ->
@@ -179,7 +178,7 @@ namespace Node
               (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars prs) ->
               UniqNames prs ->
               Node (MkNodeCfg clustSize) (
-                  MkNodeArgs (divCeilNZ (DirentSize * (2 + k)) clustSize) (divCeilNZ (DirentSize * (2 + k)) clustSize + totsum ars) @{lteAddRight (divCeilNZ (DirentSize * (2 + k)) clustSize) {m = totsum ars}}
+                  MkNodeArgs (divCeilNZ' (DirentSize * (2 + k)) clustSize) (divCeilNZ' (DirentSize * (2 + k)) clustSize + totsum ars) @{lteAddRight (divCeilNZ' (DirentSize * (2 + k)) clustSize) {m = totsum ars}}
               ) Rootless
         Root : forall clustSize.
                (0 clustNZ : IsSucc clustSize) =>
@@ -189,7 +188,7 @@ namespace Node
                (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars prs) ->
                UniqNames prs ->
                Node (MkNodeCfg clustSize) (
-                   let cur' = divCeilNZ (DirentSize * k) clustSize
+                   let cur' = divCeilNZ' (DirentSize * k) clustSize
                    in MkNodeArgs cur' (cur' + totsum ars) @{lteAddRight cur' {m = totsum ars}}
                ) Rootful
 

@@ -4,7 +4,6 @@ import Filesystems.FAT32
 import Deriving.DepTyCheck.Gen.Tuning
 
 %default total
-%hide Data.Nat.divCeilNZ
 %language ElabReflection
 %prefix_record_projections off
 

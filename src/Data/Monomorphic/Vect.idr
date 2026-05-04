@@ -8,7 +8,6 @@ import Data.Buffer.Core
 import Data.Buffer.Indexed
 
 %default total
-%hide Data.Nat.divCeilNZ
 %language ElabReflection
 %prefix_record_projections off
 

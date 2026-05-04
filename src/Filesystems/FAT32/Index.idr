@@ -6,7 +6,6 @@ import Derive.Prelude
 
 %default total
 %prefix_record_projections off
-%hide Data.Nat.divCeilNZ
 %language ElabReflection
 
 
