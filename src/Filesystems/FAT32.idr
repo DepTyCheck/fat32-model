@@ -143,6 +143,12 @@ data UniqNames : SnocVectPresence k -> Type where
     Empty : UniqNames [<]
     NewName : (ff : UniqNames prs) -> (f : MaybeFilename pr) -> (0 _ : NameIsNew ff f) => UniqNames (prs :< pr)
 
+public export
+isEmpty : UniqNames prs -> Bool
+isEmpty Empty = True
+isEmpty (NewName ff Nothing) = isEmpty ff
+isEmpty (NewName ff (Just x)) = False
+
 data NameIsNew : UniqNames prs ->
                  MaybeFilename pr ->
                  Type where
@@ -169,7 +175,7 @@ namespace Node
               (meta : Metadata) ->
               {k : Nat} ->
               {ars : SnocVectNodeArgs k} ->
-              {prs : SnocVectPresence k} ->
+              {0 prs : SnocVectPresence k} ->
               (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars prs) ->
               UniqNames prs ->
               Node (MkNodeCfg clustSize) (
@@ -179,7 +185,7 @@ namespace Node
                (0 clustNZ : IsSucc clustSize) =>
                {k : Nat} ->
                {ars : SnocVectNodeArgs k} ->
-               {prs : SnocVectPresence k} ->
+               {0 prs : SnocVectPresence k} ->
                (entries : HSnocVectMaybeNode (MkNodeCfg clustSize) k ars prs) ->
                UniqNames prs ->
                Node (MkNodeCfg clustSize) (

@@ -55,9 +55,9 @@ rmNode : (cfg : NodeCfg) ->
 rmNode (MkNodeCfg _) node idx sidx {ar} with (indexGet node idx)
   _ | (Evidence _ (File {} ** ati)) = void $ uninhabited ati
   _ | (Evidence _ (Dir meta sp ff ** _)) with (shallowIndexSet (MkNodeCfg _) _ _ sp ff sidx Nothing)
-    _ | (_ ** _ ** (sp', Element ff' _)) = indexSet (MkNodeCfg _) node idx (Dir meta sp' ff')
+    _ | (_ ** Evidence _ (sp', Element ff' _)) = indexSet (MkNodeCfg _) node idx (Dir meta sp' ff')
   _ | (Evidence _ (Root sp ff ** _)) with (shallowIndexSet (MkNodeCfg _) _ _ sp ff sidx Nothing)
-    _ | (_ ** _ ** (sp', Element ff' _)) = indexSet (MkNodeCfg _) node idx (Root sp' ff')
+    _ | (_ ** Evidence _ (sp', Element ff' _)) = indexSet (MkNodeCfg _) node idx (Root sp' ff')
 
 public export
 mvNode : (cfg : NodeCfg) ->

@@ -96,18 +96,18 @@ namespace HSnocVectMaybeNode
     public export
     shallowIndexSet : (cfg : NodeCfg) ->
                       (ars : SnocVectNodeArgs k) ->
-                      (prs : SnocVectPresence k) ->
+                      (0 prs : SnocVectPresence k) ->
                       (vect : HSnocVectMaybeNode cfg k ars prs) ->
                       (names : UniqNames prs) ->
                       (sidx : ShallowIndexIn vect) ->
                       {ar2 : NodeArgs} ->
-                      {pr2 : Presence} ->
+                      {0 pr2 : Presence} ->
                       (mnode : MaybeNode cfg ar2 pr2) ->
-                      (ars' ** prs' ** (HSnocVectMaybeNode cfg k ars' prs', Subset (UniqNames prs') $ \ff' => NamesWeakened names ff'))
-    shallowIndexSet cfg (ars :< ar) (prs :< Present) (sp :< Just p) (NewName ff f) SHere Nothing = (_ ** _ ** (sp :< Nothing, Element (NewName ff Nothing) $ WErased $ trivialNameWeaken ff))
-    shallowIndexSet cfg (ars :< ar) (prs :< Present) (sp :< Just p) (NewName ff f) SHere (Just x) = (_ ** _ ** (sp :< Just x, Element (NewName ff f) $ WEqual $ trivialNameWeaken ff))
+                      (ars' ** Exists $ \prs' => (HSnocVectMaybeNode cfg k ars' prs', Subset (UniqNames prs') $ \ff' => NamesWeakened names ff'))
+    shallowIndexSet cfg (ars :< ar) (prs :< Present) (sp :< Just p) (NewName ff f) SHere Nothing = (_ ** Evidence _ (sp :< Nothing, Element (NewName ff Nothing) $ WErased $ trivialNameWeaken ff))
+    shallowIndexSet cfg (ars :< ar) (prs :< Present) (sp :< Just p) (NewName ff f) SHere (Just x) = (_ ** Evidence _ (sp :< Just x, Element (NewName ff f) $ WEqual $ trivialNameWeaken ff))
     shallowIndexSet cfg (ars :< ar) (prs :< pr) (sp :< p) (NewName ff f @{nprf}) (SThere sidx) mnode with (shallowIndexSet cfg ars prs sp ff sidx mnode)
-      _ | (ars' ** prs' ** (sp', Element ff' wprf')) = (_ ** _ ** (sp' :< p, Element (NewName ff' f @{newNameInWeakenedPrf ff ff' f wprf' nprf}) $ WEqual wprf'))
+      _ | (ars' ** Evidence prs' (sp', Element ff' wprf')) = (_ ** Evidence _ (sp' :< p, Element (NewName ff' f @{newNameInWeakenedPrf ff ff' f wprf' nprf}) $ WEqual wprf'))
     
 
 namespace Node
@@ -256,11 +256,11 @@ getBlobByFileIndex node idx with (indexGet node idx)
 public export
 getContentsByDirIndex : (node : Node cfg ar fs) ->
                         (idx : IndexIn node rootl DirI) ->
-                        (k ** ars ** prs ** (HSnocVectMaybeNode cfg k ars prs, UniqNames prs))
+                        (k ** ars ** Exists $ \prs => (HSnocVectMaybeNode cfg k ars prs, UniqNames prs))
 getContentsByDirIndex node idx with (indexGet node idx)
   _ | (Evidence _ (File {} ** ati)) = void $ uninhabited ati
-  _ | (Evidence _ (Dir _ ents ff ** _)) = (_ ** _ ** _ ** (ents, ff))
-  _ | (Evidence _ (Root ents ff ** _)) = (_ ** _ ** _ ** (ents, ff))
+  _ | (Evidence _ (Dir _ ents ff ** _)) = (_ ** _ ** Evidence _ (ents, ff))
+  _ | (Evidence _ (Root ents ff ** _)) = (_ ** _ ** Evidence _ (ents, ff))
 
 public export
 compoundIndexGet : (node : Node cfg ar fs) ->

@@ -29,12 +29,6 @@ namespace SnocVectPresence
         (:<) : SnocVectPresence k -> Presence -> SnocVectPresence (S k)
     %runElab deriveIndexed "SnocVectPresence" [Show]
 
-    public export
-    countPresent : SnocVectPresence k -> Nat
-    countPresent [<] = 0
-    countPresent (sx :< Present) = S $ countPresent sx
-    countPresent (sx :< Absent) = countPresent sx
-
 public export %hint
 genBits8 : Gen MaybeEmpty Bits8
 -- genBits8 = elements' $ the (List Bits8) [0..255]

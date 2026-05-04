@@ -123,7 +123,7 @@ shallowIndex2Name (xs :< x) (NewName ff f) (SThere idx) = shallowIndex2Name xs f
 public export
 indexPair2Name : (node : Node cfg ar Rootful) -> (idx : IndexIn node rootl DirI) -> (sidx : ShallowIndexIn $ fst $ snd $ snd $ snd $ getContentsByDirIndex node idx) -> String
 indexPair2Name node idx sidx with (getContentsByDirIndex node idx)
-  _ | (_ ** _ ** _ ** (vect, ff)) = shallowIndex2Name vect ff sidx
+  _ | (_ ** _ ** Evidence _ (vect, ff)) = shallowIndex2Name vect ff sidx
 
 convert2NameList : (ff : UniqNames prs) -> List String -> List String
 convert2NameList Empty acc = acc
@@ -283,8 +283,8 @@ printCOps i len root (MvNode idx sidx idx2 dstname nameprf cont) = let
           }
 
         """# :: printCOps (i + 1) len _ cont
-printCOps i len root (LsDir idx cont) with (countPresent $ fst $ snd $ snd $ getContentsByDirIndex root idx)
-  _ | Z = let path = index2UnixPath root idx in #"""
+printCOps i len root (LsDir idx cont) with (isEmpty $ snd $ snd $ snd $ snd $ getContentsByDirIndex root idx)
+  _ | True = let path = index2UnixPath root idx in #"""
           {
             puts("Test \#{show i}/\#{show len}: LsDir on \#{path}");
             errno = 0;
@@ -299,7 +299,7 @@ printCOps i len root (LsDir idx cont) with (countPresent $ fst $ snd $ snd $ get
           }
 
         """# :: printCOps (i + 1) len _ cont
-  _ | (S _) = let path = index2UnixPath root idx in #"""
+  _ | False = let path = index2UnixPath root idx in #"""
           {
             puts("Test \#{show i}/\#{show len}: LsDir on \#{path}");
             errno = 0;
